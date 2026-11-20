@@ -3,7 +3,7 @@
 Upload a research paper PDF and get back a **Google Colab notebook** that
 explains the paper and implements its method in runnable Python.
 
-The PDF is sent directly to an LLM (Anthropic Claude or Google Gemini), which
+The PDF is sent directly to an LLM (Anthropic Claude, Google Gemini or OpenAI), which
 reads the pages as they are — layout, equations, tables and figures — and
 writes the notebook.
 
@@ -31,14 +31,15 @@ Generated code should be reviewed before you rely on its results.
 
 ## Setup
 
-You need Python 3 and an API key for Anthropic or Google Gemini.
+You need Python 3 and an API key for Anthropic, Google Gemini or OpenAI.
 
 1. **Set the environment variables.** Two are **required**, with no
    defaults; the output folder is optional:
 
    ```bash
-   export PROVIDER=anthropic              # or: gemini
-   export ANTHROPIC_API_KEY=sk-ant-...    # for gemini: GEMINI_API_KEY=...
+   export PROVIDER=anthropic              # or: gemini, openai
+   export ANTHROPIC_API_KEY=sk-ant-...    # gemini: GEMINI_API_KEY=...
+                                          # openai: OPENAI_API_KEY=...
    export NOTEBOOK_OUTPUT_DIR=~/papers    # optional; default ~/Downloads
    ```
 
@@ -80,7 +81,7 @@ The page is a dashboard with five panels:
 4. **Metrics**:
    - tokens and an **estimated cost** (from `[pricing]` in `config.ini`;
      fast mode is priced at `fast_multiplier`). Add a line for any model
-     you use that isn't listed, such as your Gemini model.
+     you use that isn't listed, such as your Gemini or OpenAI model.
    - how much of the output budget (`max_tokens`) was used
    - time per stage (waiting, thinking, writing, building) and output speed
    - which model and speed actually answered, with a warning if a
@@ -109,7 +110,7 @@ building — elapsed time, characters written and Claude's thinking summary;
 then `result` with the notebook, or `error`). The upload page uses it to
 show live status.
 
-## LLM providers (Anthropic, Gemini)
+## LLM providers (Anthropic, Gemini, OpenAI)
 
 [`config.ini`](config.ini) holds the vendor defaults, one section per provider:
 `base_url`, `model`, and `api_key_env` (the environment variables to read the
@@ -131,6 +132,22 @@ Anthropic tuning, set in `[anthropic]` and overridable per run:
 | Effort | `effort = medium` | `PROVIDER_EFFORT` | `low`…`max`; higher thinks longer (slower, more tokens) |
 | Speed | `speed = fast` | `PROVIDER_SPEED` | `fast` ≈ up to 2.5× faster output at 2× price; falls back to `standard` if busy |
 | Max tokens | `max_tokens = 128000` | `PROVIDER_MAX_TOKENS` | shared by thinking and the notebook |
+
+OpenAI (`PROVIDER=openai`, or `gpt` / `chatgpt`) defaults to `gpt-5.5`;
+to use another model, set `model` under `[openai]` or
+`export PROVIDER_MODEL=<model id>`. The model must accept PDF input. It
+uses the Responses API with strict structured output, and sends
+`store: false` so OpenAI does not keep the paper or the notebook. Optional
+tuning, not sent unless set:
+
+| Option | `config.ini` | Environment override | Notes |
+|--------|--------------|----------------------|-------|
+| Effort | `effort = medium` | `PROVIDER_EFFORT` | reasoning effort: `none`, `minimal`, `low`…`max`; leave unset for models without reasoning |
+| Max tokens | `max_tokens = 64000` | `PROVIDER_MAX_TOKENS` | shared by reasoning and the notebook |
+
+OpenAI replies are not streamed, so the dashboard shows "waiting" until the
+whole notebook arrives (no live thinking or writing progress). Add the
+model's price under `[pricing]` to see its cost.
 
 To change defaults without editing `config.ini`, point
 `PAPER_TO_NOTEBOOK_CONFIG` at your own `.ini` file; its values override
@@ -209,6 +226,7 @@ The tests use fake LLM clients, so they make no API calls and need no keys.
 │   ├── base.py             # LLMProvider interface, ProviderSettings
 │   ├── claude.py           # Anthropic SDK
 │   ├── gemini.py           # Google Gen AI SDK
+│   ├── openai_provider.py  # OpenAI SDK (Responses API)
 │   └── factory.py          # get_provider() from $PROVIDER
 ├── util/
 │   ├── config.py           # config.ini loader, API key lookup

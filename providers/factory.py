@@ -43,16 +43,22 @@ PROVIDER_ENV_VAR = "PROVIDER"
 MODEL_ENV_VAR = "PROVIDER_MODEL"
 BASE_URL_ENV_VAR = "PROVIDER_BASE_URL"
 
-SUPPORTED_PROVIDERS = ("anthropic", "gemini")
+SUPPORTED_PROVIDERS = ("anthropic", "gemini", "openai")
 
 # Alternative spellings accepted for PROVIDER.
-_ALIASES = {"claude": "anthropic", "google": "gemini"}
+_ALIASES = {
+    "claude": "anthropic",
+    "google": "gemini",
+    "gpt": "openai",
+    "chatgpt": "openai",
+}
 
 # Tuning options each provider accepts. Each is read from the provider's INI
 # section and can be overridden with PROVIDER_<OPTION>, e.g. PROVIDER_EFFORT.
 PROVIDER_OPTIONS: dict[str, tuple[str, ...]] = {
     "anthropic": ("effort", "speed", "max_tokens"),
     "gemini": (),
+    "openai": ("effort", "max_tokens"),
 }
 
 logger = get_logger(__name__)
@@ -70,9 +76,16 @@ def _gemini(settings: ProviderSettings) -> LLMProvider:
     return GeminiProvider(settings)
 
 
+def _openai(settings: ProviderSettings) -> LLMProvider:
+    from providers.openai_provider import OpenAIProvider
+
+    return OpenAIProvider(settings)
+
+
 _BUILDERS: dict[str, Callable[[ProviderSettings], LLMProvider]] = {
     "anthropic": _anthropic,
     "gemini": _gemini,
+    "openai": _openai,
 }
 
 
@@ -119,6 +132,7 @@ def resolve_settings(
     base_url: str | None = None,
     config: configparser.ConfigParser | None = None,
     require_key: bool = True,
+    require_model: bool = True,
 ) -> ProviderSettings:
     """Resolve the provider's settings without creating an SDK client.
 
@@ -126,11 +140,13 @@ def resolve_settings(
         require_key: When False, a missing API key is not an error; the
             returned settings have ``api_key=None`` (used to show the
             configuration).
+        require_model: When False, a missing model is not an error; the
+            returned settings have ``model=""``.
 
     Raises:
         ConfigError: If the provider is missing or unknown, no model is
-            configured, or (when ``require_key``) none of the provider's
-            API key variables is set.
+            configured (when ``require_model``), or (when ``require_key``)
+            none of the provider's API key variables is set.
     """
     provider_name = resolve_provider_name(name)
     if config is None:
@@ -144,7 +160,7 @@ def resolve_settings(
         (os.environ.get(MODEL_ENV_VAR), f"${MODEL_ENV_VAR}"),
         (section.get("model"), f"config [{provider_name}] model"),
     )
-    if not resolved_model:
+    if not resolved_model and require_model:
         raise ConfigError(
             f"No model configured for {provider_name!r}. Set "
             f"{MODEL_ENV_VAR} or 'model' under [{provider_name}]."
@@ -203,7 +219,8 @@ def get_provider(
     """Build the LLM provider selected by ``PROVIDER`` (or ``name``).
 
     Args:
-        name: ``"anthropic"`` or ``"gemini"``; overrides ``PROVIDER``.
+        name: ``"anthropic"``, ``"gemini"`` or ``"openai"``; overrides
+            ``PROVIDER``.
         model: Overrides ``PROVIDER_MODEL`` and the INI ``model``.
         base_url: Overrides ``PROVIDER_BASE_URL`` and the INI ``base_url``.
         config: Parsed config. Defaults to :func:`util.config.load_config`.

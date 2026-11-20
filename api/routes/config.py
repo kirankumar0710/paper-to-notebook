@@ -41,7 +41,7 @@ def describe_configuration() -> dict[str, Any]:
         "problems": check_configuration(),
     }
     try:
-        settings = resolve_settings(require_key=False)
+        settings = resolve_settings(require_key=False, require_model=False)
     except (ConfigError, FileNotFoundError):
         pass
     else:

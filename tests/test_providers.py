@@ -142,7 +142,7 @@ class TestResolveProvider:
         assert resolve_provider_name("anthropic") == "anthropic"
 
     def test_unknown_provider(self, monkeypatch):
-        monkeypatch.setenv("PROVIDER", "openai")
+        monkeypatch.setenv("PROVIDER", "mistral")
         with pytest.raises(ValueError, match="Set PROVIDER"):
             resolve_provider_name()
 

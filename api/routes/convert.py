@@ -136,9 +136,9 @@ def _conversion_error(exc: Exception, provider: LLMProvider) -> HTTPException:
     """Map a failed conversion to the HTTP error returned to the client."""
     if isinstance(exc, ProviderError) and exc.retryable:
         detail = (
-            f"The {provider.name} model is temporarily unavailable "
-            f"(busy or rate limited). Please try again in a minute. "
-            f"Details: {exc}"
+            f"The {provider.name} model is busy or rate limited. Please "
+            f"try again in a minute; if it keeps failing, check your "
+            f"account's rate limits and quota. Details: {exc}"
         )
         error = HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

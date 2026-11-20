@@ -10,10 +10,12 @@ const sub = (text, extra = "") => el("span", { className: `sub ${extra}`,
 function render(config) {
   $("cfg-provider").replaceChildren(...(config.provider
     ? [el("span", { textContent: config.provider })]
-    : [badge("bad", "Not set"), sub("export PROVIDER=anthropic (or gemini)")]));
+    : [badge("bad", "Not set"), sub("export PROVIDER=anthropic (or gemini, openai)")]));
 
   $("cfg-model").replaceChildren(
-    el("span", { className: "mono", textContent: config.model || "—" }),
+    config.model
+      ? el("span", { className: "mono", textContent: config.model })
+      : badge("bad", "Not set"),
     config.base_url ? sub(config.base_url, "mono") : "");
 
   const key = config.api_key;

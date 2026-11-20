@@ -120,13 +120,21 @@ class GeminiProvider(LLMProvider):
             )
         except errors.APIError as exc:
             retryable = exc.code in RETRYABLE_STATUS_CODES
+            hint = (
+                " A whole paper is a large request; free-tier Gemini quotas "
+                "are often too small for it. Check your plan's rate limits "
+                "and quota at ai.google.dev."
+                if exc.code == 429
+                else ""
+            )
             raise ProviderError(
                 f"Gemini API error {exc.code}: {exc.message}"
                 + (
                     f" (still failing after {MAX_ATTEMPTS} attempts)"
                     if retryable
                     else ""
-                ),
+                )
+                + hint,
                 retryable=retryable,
             ) from exc
 

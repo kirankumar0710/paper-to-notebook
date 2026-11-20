@@ -1,4 +1,5 @@
-"""Pluggable LLM providers (Anthropic, Gemini) behind one interface."""
+"""Pluggable LLM providers (Anthropic, Gemini, OpenAI) behind one
+interface."""
 
 from .base import LLMProvider, ProviderError, ProviderSettings
 from .factory import (
