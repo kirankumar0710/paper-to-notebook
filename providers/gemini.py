@@ -19,6 +19,7 @@ from providers.base import (
     ProgressCallback,
     ProviderError,
     ProviderSettings,
+    token_usage,
 )
 from util.log import get_logger
 from util.url_utils import split_api_version
@@ -154,9 +155,25 @@ class GeminiProvider(LLMProvider):
                     "Gemini finished.",
                     elapsed=time.monotonic() - started,
                     output_chars=len(response.text),
+                    usage=_usage(usage),
                 )
             )
         try:
             return json.loads(response.text)
         except json.JSONDecodeError as exc:
             raise ProviderError("Gemini returned invalid JSON.") from exc
+
+
+def _usage(usage: Any) -> dict[str, int] | None:
+    """Token counts from Gemini's usage metadata; thinking counts as output."""
+    if usage is None:
+        return None
+    output = getattr(usage, "candidates_token_count", None)
+    thoughts = getattr(usage, "thoughts_token_count", None)
+    if isinstance(thoughts, int):
+        output = (output if isinstance(output, int) else 0) + thoughts
+    return token_usage(
+        getattr(usage, "prompt_token_count", None),
+        output,
+        getattr(usage, "total_token_count", None),
+    )

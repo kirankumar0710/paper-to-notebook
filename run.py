@@ -53,7 +53,7 @@ def report_provider() -> bool:
         True if everything required is configured.
     """
     from providers.factory import resolve_settings
-    from util.config import resolve_output_dir
+    from util.config import locate_output_dir
 
     ok = True
     try:
@@ -66,7 +66,13 @@ def report_provider() -> bool:
         print(f"🔑 API key {settings.describe_key()}")
 
     try:
-        print(f"📁 Output folder: {resolve_output_dir()}")
+        folder, source = locate_output_dir()
+        note = (
+            "default; export NOTEBOOK_OUTPUT_DIR to change"
+            if source == "default"
+            else f"from {source}"
+        )
+        print(f"📁 Output folder: {folder} ({note})")
     except ValueError as exc:
         print(f"⚠️  {exc}")
         ok = False

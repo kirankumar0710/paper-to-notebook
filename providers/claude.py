@@ -17,6 +17,7 @@ from providers.base import (
     ProgressCallback,
     ProviderError,
     ProviderSettings,
+    token_usage,
 )
 from util.log import get_logger
 from util.url_utils import split_api_version
@@ -54,10 +55,18 @@ class _StreamTracker:
         self.stage = "waiting"
         self.text_chars = 0
         self.thinking_text = ""
+        self.thinking_sent = 0  # chars of thinking_text already emitted
         self.last_log = started
         self.last_emit = 0.0
 
-    def emit(self, stage: str, message: str, *, force: bool = False) -> None:
+    def emit(
+        self,
+        stage: str,
+        message: str,
+        *,
+        force: bool = False,
+        usage: dict[str, int] | None = None,
+    ) -> None:
         now = time.monotonic()
         if now - self.last_log >= PROGRESS_LOG_INTERVAL:
             self.last_log = now
@@ -74,6 +83,8 @@ class _StreamTracker:
             return
         self.last_emit = now
         excerpt = self.thinking_text[-THINKING_EXCERPT_CHARS:].strip()
+        delta = self.thinking_text[self.thinking_sent :]
+        self.thinking_sent = len(self.thinking_text)
         self.on_progress(
             Progress(
                 stage=stage,
@@ -81,6 +92,8 @@ class _StreamTracker:
                 elapsed=now - self.started,
                 output_chars=self.text_chars,
                 thinking=excerpt or None,
+                thinking_delta=delta or None,
+                usage=usage,
             )
         )
 
@@ -339,7 +352,15 @@ class ClaudeProvider(LLMProvider):
             block.text for block in response.content if block.type == "text"
         )
         logger.debug("Anthropic reply (first 500 chars): %s", text[:500])
-        tracker.emit("done", "Claude finished.", force=True)
+        tracker.emit(
+            "done",
+            "Claude finished.",
+            force=True,
+            usage=token_usage(
+                getattr(usage, "input_tokens", None),
+                getattr(usage, "output_tokens", None),
+            ),
+        )
         try:
             return json.loads(text)
         except json.JSONDecodeError as exc:

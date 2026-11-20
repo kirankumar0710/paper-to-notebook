@@ -62,4 +62,4 @@ fail_under = 95
 exclude_also = ['if __name__ == "__main__":']
 
 [tool.setuptools.package-data]
-api = ["static/*.html"]
+api = ["static/*.html", "static/*.css", "static/*.js", "static/panels/*/*"]

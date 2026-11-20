@@ -1,0 +1,18 @@
+/* 1. Configuration */
+dl.config { margin: 0; display: grid; grid-template-columns: auto 1fr;
+  gap: 8px 14px; font-size: 0.9rem; }
+dl.config dt { color: var(--muted); }
+dl.config dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.badge {
+  display: inline-flex; align-items: center; gap: 6px; font-weight: 600;
+}
+.badge::before {
+  content: ""; width: 8px; height: 8px; border-radius: 50%;
+  background: currentColor;
+}
+.badge.ok { color: var(--ok); }
+.badge.bad { color: var(--error); }
+.badge.warn { color: var(--warn); }
+ul.problems { margin: 12px 0 0; padding: 10px 12px 10px 28px;
+  border-radius: 8px; background: var(--subtle); color: var(--error);
+  font-size: 0.85rem; }

@@ -24,10 +24,11 @@ def _settings(**options):
     return ProviderSettings(name="anthropic", model="m", options=options)
 
 
-def _response(text='{"ok": true}', stop_reason="end_turn"):
+def _response(text='{"ok": true}', stop_reason="end_turn", usage=None):
     return Namespace(
         stop_reason=stop_reason,
         content=[Namespace(type="text", text=text)],
+        usage=usage,
     )
 
 
@@ -203,6 +204,10 @@ class TestProgressCallbacks:
         assert stages[-1] == "done"
         thinking = [u for u in updates if u.thinking]
         assert "core method" in thinking[0].thinking
+        # Deltas are sent once each, so joining them gives the full summary.
+        assert "".join(u.thinking_delta or "" for u in updates) == (
+            "Identifying the paper's core method."
+        )
         assert max(u.output_chars for u in updates) == 12
 
     def test_updates_are_throttled(self, monkeypatch):
@@ -247,6 +252,52 @@ class TestProgressCallbacks:
             "elapsed": 1.3,
             "output_chars": 5,
             "thinking": None,
+            "thinking_delta": None,
+            "usage": None,
+        }
+
+    def test_claude_reports_usage_when_done(self):
+        response = _response(
+            usage=Namespace(input_tokens=1200, output_tokens=345)
+        )
+        updates = []
+        ClaudeProvider(
+            _settings(), client=_client(response=response)
+        ).generate_json("x", schema=SCHEMA, on_progress=updates.append)
+        assert updates[-1].stage == "done"
+        assert updates[-1].usage == {
+            "input_tokens": 1200,
+            "output_tokens": 345,
+            "total_tokens": 1545,
+        }
+
+    def test_claude_without_usage(self):
+        updates = []
+        ClaudeProvider(_settings(), client=_client()).generate_json(
+            "x", schema=SCHEMA, on_progress=updates.append
+        )
+        assert updates[-1].usage is None
+
+    def test_gemini_reports_usage_with_thinking_as_output(self):
+        client = MagicMock()
+        client.models.generate_content.return_value = Namespace(
+            text='{"ok": true}',
+            candidates=[Namespace(finish_reason="STOP")],
+            usage_metadata=Namespace(
+                prompt_token_count=900,
+                candidates_token_count=100,
+                thoughts_token_count=50,
+                total_token_count=1050,
+            ),
+        )
+        updates = []
+        GeminiProvider(
+            ProviderSettings(name="gemini", model="g"), client=client
+        ).generate_json("x", schema=SCHEMA, on_progress=updates.append)
+        assert updates[-1].usage == {
+            "input_tokens": 900,
+            "output_tokens": 150,
+            "total_tokens": 1050,
         }
 
 
@@ -293,6 +344,60 @@ class TestStreamEndpoint:
         assert result["saved_path"] == str(notebook_output_dir / "paper.ipynb")
         assert json.loads(result["notebook"])["cells"]
         assert (notebook_output_dir / "paper.ipynb").exists()
+        assert result["upload_bytes"] == len(b"%PDF-1.7 fake")
+        assert result["notebook_bytes"] == len(result["notebook"].encode())
+        assert result["cells"] == (
+            result["markdown_cells"] + result["code_cells"]
+        )
+        assert (result["provider"], result["model"]) == ("fake", "fake-model")
+        assert result["usage"] is None
+
+    def test_result_includes_usage_from_done(self, client):
+        from test_notebook import FakeProvider
+
+        class UsageProvider(FakeProvider):
+            def generate_json(self, *args, on_progress=None, **kwargs):
+                reply = super().generate_json(
+                    *args, on_progress=on_progress, **kwargs
+                )
+                on_progress(
+                    Progress(
+                        "done",
+                        "Done",
+                        usage={
+                            "input_tokens": 10,
+                            "output_tokens": 5,
+                            "total_tokens": 15,
+                        },
+                    )
+                )
+                return reply
+
+        events = _parse_sse(self._post(client(UsageProvider())).text)
+        kind, result = events[-1]
+        assert kind == "result"
+        assert result["usage"]["total_tokens"] == 15
+
+    def test_saved_notebook_can_be_listed_and_downloaded(self, client):
+        test_client = client()
+        result = _parse_sse(self._post(test_client).text)[-1][1]
+        url = result["download_url"]
+        assert url.startswith("/api/notebooks/")
+
+        listed = test_client.get("/api/notebooks").json()
+        assert listed[0]["download_url"] == url
+        assert listed[0]["exists"] is True
+        assert listed[0]["size"] == len(result["notebook"].encode())
+
+        download = test_client.get(url)
+        assert download.status_code == 200
+        assert download.text == result["notebook"]
+        assert "paper.ipynb" in download.headers["content-disposition"]
+
+    def test_unknown_notebook_is_404(self, client):
+        response = client().get("/api/notebooks/../../etc/passwd")
+        assert response.status_code == 404
+        assert client().get("/api/notebooks/nope").status_code == 404
 
     def test_streams_error(self, client):
         from test_notebook import FakeProvider
@@ -315,3 +420,54 @@ class TestStreamEndpoint:
         provider = FakeProvider(reply={"title": "x", "cells": []})
         kind, error = _parse_sse(self._post(client(provider)).text)[-1]
         assert (kind, error["status"]) == ("error", 502)
+
+
+class TestConfigEndpoint:
+    @pytest.fixture
+    def client(self, monkeypatch):
+        for var in ("PROVIDER", "PROVIDER_MODEL", "ANTHROPIC_API_KEY"):
+            monkeypatch.delenv(var, raising=False)
+        return TestClient(api_main.app)
+
+    def test_configured(self, client, monkeypatch, notebook_output_dir):
+        monkeypatch.setenv("PROVIDER", "anthropic")
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-secret-0000000000000")
+        info = client.get("/api/config").json()
+        assert info["provider"] == "anthropic"
+        assert info["model"]
+        assert info["api_key"] == {
+            "found": True,
+            "source": "ANTHROPIC_API_KEY",
+            "env_vars": ["ANTHROPIC_API_KEY"],
+        }
+        assert info["output_dir"]["path"] == str(notebook_output_dir)
+        assert info["output_dir"]["source"] == "$NOTEBOOK_OUTPUT_DIR"
+        assert info["output_dir"]["writable"] is True
+        assert info["problems"] == []
+
+    def test_key_is_never_returned(self, client, monkeypatch):
+        monkeypatch.setenv("PROVIDER", "anthropic")
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-secret-qzxjvwkqzxjv")
+        text = client.get("/api/config").text
+        assert "sk-s" not in text
+        assert "zxjv" not in text
+
+    def test_missing_key(self, client, monkeypatch):
+        monkeypatch.setenv("PROVIDER", "anthropic")
+        info = client.get("/api/config").json()
+        assert info["provider"] == "anthropic"
+        assert info["api_key"]["found"] is False
+        assert any("ANTHROPIC_API_KEY" in p for p in info["problems"])
+
+    def test_nothing_configured(self, client, monkeypatch, tmp_path):
+        monkeypatch.delenv("NOTEBOOK_OUTPUT_DIR")
+        monkeypatch.setenv("HOME", str(tmp_path))
+        info = client.get("/api/config").json()
+        assert info["provider"] is None
+        assert info["output_dir"] == {
+            "path": str(tmp_path / "Downloads"),
+            "source": "default",
+            "exists": False,
+            "writable": True,
+        }
+        assert len(info["problems"]) == 1

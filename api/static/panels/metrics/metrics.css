@@ -1,0 +1,10 @@
+/* 4. Metrics */
+.tiles { display: grid; gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+.tile { padding: 10px 12px; border-radius: 8px; background: var(--subtle);
+  min-width: 0; }
+.tile .k { font-size: 0.75rem; color: var(--muted); }
+.tile .v { font-size: 1.3rem; font-weight: 600;
+  font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.tile .d { font-size: 0.75rem; color: var(--muted); min-height: 1.1em; }
+#metrics-note { margin: 10px 0 0; font-size: 0.8rem; color: var(--muted); }

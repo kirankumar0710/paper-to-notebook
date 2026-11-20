@@ -18,7 +18,7 @@ writes the notebook.
    metadata, adding a `!pip install` cell and a GPU runtime when needed.
 4. The `.ipynb` is returned as a download named after the uploaded file
    (`my_paper.pdf` → `my_paper.ipynb`). A copy is also saved on the
-   server in `$NOTEBOOK_OUTPUT_DIR` (see [Output folder](#output-folder)). Open the notebook in Colab with
+   server in `$NOTEBOOK_OUTPUT_DIR`, or `~/Downloads` if it is not set (see [Output folder](#output-folder)). Open the notebook in Colab with
    **File → Upload notebook**.
 
 A conversion is a paid API call and usually takes a minute or more.
@@ -31,22 +31,56 @@ Generated code should be reviewed before you rely on its results.
 
 ## Setup
 
-Three environment variables are **required** — there are no defaults:
+You need Python 3 and an API key for Anthropic or Google Gemini.
 
-```bash
-export PROVIDER=anthropic              # or: gemini
-export ANTHROPIC_API_KEY=sk-ant-...    # for gemini: GEMINI_API_KEY=...
-export NOTEBOOK_OUTPUT_DIR=~/Downloads # where notebooks are saved
-python run.py
-```
+1. **Set the environment variables.** Two are **required**, with no
+   defaults; the output folder is optional:
 
-If any is missing, `run.py` and the server log a warning at startup naming
-the variable to export, and `/convert` returns **503** (before any paid API
+   ```bash
+   export PROVIDER=anthropic              # or: gemini
+   export ANTHROPIC_API_KEY=sk-ant-...    # for gemini: GEMINI_API_KEY=...
+   export NOTEBOOK_OUTPUT_DIR=~/papers    # optional; default ~/Downloads
+   ```
+
+   Add these lines to your shell profile (e.g. `~/.zshrc`) to keep them
+   across terminals. API keys are never read from a file.
+
+2. **Dependencies are installed for you.** The first time you run
+   `run.py`, it creates a virtual environment in `venv/` and installs
+   `requirements.txt` into it. Later runs reuse it. There is no separate
+   install step.
+
+If a required variable is missing, `run.py` and the server log a warning
+at startup naming the variable to export, the dashboard's Configuration
+panel shows it in red, and `/convert` returns **503** (before any paid API
 call is made) until it is set and the server is restarted.
 
-`run.py` creates a virtual environment and installs dependencies on first
-run. Then open **http://localhost:8000/**, choose a PDF and click
-**Convert to notebook**; the `.ipynb` downloads when it is ready.
+## Run
+
+```bash
+python3 run.py
+```
+
+The server starts on port 8000. Open **http://localhost:8000/**, choose a
+PDF and click **Convert to notebook**; the `.ipynb` downloads when it is
+ready. Stop the server with `Ctrl+C`. After changing an environment
+variable, restart it.
+
+The page is a dashboard with five panels:
+
+1. **Configuration**: provider, model, whether the API key was found (and
+   in which variable; the key itself is never shown) and the save folder.
+2. **Upload paper**: pick or drop a PDF and start the conversion.
+3. **LLM output**: live stages, an activity log and the model's
+   reasoning summary.
+4. **Metrics**: input/output/total tokens, time taken, upload size,
+   notebook size, cell counts and characters written.
+5. **Download**: the new notebook, plus every notebook generated since the
+   server started.
+
+These are backed by `GET /api/config` and `GET /api/notebooks` (download
+one with `GET /api/notebooks/{id}`; only notebooks this server generated
+can be downloaded this way).
 
 The API docs are at `/docs` and a health check at `/health`. From the
 command line:
@@ -110,7 +144,8 @@ Every notebook is also saved on the server. `output_dir` under `[app]` in
 output_dir = NOTEBOOK_OUTPUT_DIR
 ```
 
-The variable is required. `~` and `$VARIABLES` in its value are expanded,
+The variable is optional: if it is not set, notebooks are saved to
+`~/Downloads`. `~` and `$VARIABLES` in its value are expanded,
 and relative paths are resolved from the project root. Existing files are
 never overwritten.
 
@@ -137,8 +172,21 @@ The tests use fake LLM clients, so they make no API calls and need no keys.
 
 ```
 ├── api/
-│   ├── main.py             # FastAPI app, /convert endpoint
-│   └── static/index.html   # Upload page served at /
+│   ├── main.py             # FastAPI app: middleware, routers, /static
+│   ├── settings.py         # Shared constants (upload limit, version…)
+│   ├── dependencies.py     # Provider / output-folder checks
+│   ├── routes/             # One module per dashboard panel
+│   │   ├── dashboard.py    # GET / — assembles the page from the panels
+│   │   ├── config.py       # 1 Configuration: /api/config, /health
+│   │   ├── convert.py      # 2–4 Upload, LLM output, Metrics: /convert…
+│   │   └── download.py     # 5 Download: /api/notebooks
+│   └── static/
+│       ├── index.html      # Page shell; one include line per panel
+│       ├── base.css        # Theme, grid layout, shared styles
+│       ├── shared.js       # Formatting, SSE reader, scroll helpers
+│       ├── app.js          # Wires the panels together, runs a conversion
+│       └── panels/<name>/  # config, upload, output, metrics, download:
+│                           #   <name>.html, <name>.css, <name>.js
 ├── notebook_builder/
 │   ├── prompt.py           # System prompt + JSON schema for the model
 │   ├── converter.py        # pdf_to_notebook(): PDF → LLM → notebook

@@ -211,7 +211,9 @@ class TestApiExtras:
         }
 
     def test_rejects_large_upload(self, monkeypatch):
-        monkeypatch.setattr(api_main, "MAX_UPLOAD_BYTES", 10)
+        import api.routes.convert as convert_routes
+
+        monkeypatch.setattr(convert_routes, "MAX_UPLOAD_BYTES", 10)
         with pytest.raises(HTTPException) as info:
             _convert(FakeProvider(), data=PDF + b"x" * 20)
         assert info.value.status_code == 400
@@ -267,8 +269,10 @@ class TestHttp:
         assert response.headers["content-type"].startswith("text/html")
         page = response.text
         assert '<input id="file" name="file" type="file"' in page
-        assert 'fetch("/convert/stream"' in page
         assert 'id="thinking"' in page
+        assert '<script type="module" src="/static/app.js">' in page
+        script = client.get("/static/app.js").text
+        assert 'fetch("/convert/stream"' in script
 
     def test_missing_file_is_422(self, client):
         assert client.post("/convert").status_code == 422
@@ -312,9 +316,38 @@ class TestSavedCopy:
         assert "Could not save a copy" in caplog.text
 
     def test_page_has_download_button(self):
-        page = api_main.UPLOAD_PAGE.read_text()
+        page = TestClient(api_main.app).get("/").text
         assert 'id="download-link"' in page
-        assert "result.saved_path" in page
+        script = api_main.UPLOAD_PAGE.parent / "panels/download/download.js"
+        assert "result.saved_path" in script.read_text()
+
+    def test_page_includes_every_panel(self):
+        page = TestClient(api_main.app).get("/").text
+        assert "<!-- include:" not in page
+        for panel in ("config", "upload", "output", "metrics", "download"):
+            assert f'id="{panel}-panel"' in page
+
+    def test_panel_assets_are_served(self):
+        client = TestClient(api_main.app)
+        for path in (
+            "/static/app.js",
+            "/static/shared.js",
+            "/static/base.css",
+            "/static/panels/output/output.js",
+            "/static/panels/metrics/metrics.css",
+        ):
+            assert client.get(path).status_code == 200, path
+
+    def test_include_outside_static_dir_is_refused(self, tmp_path):
+        from api.routes.dashboard import render_page
+
+        static = tmp_path / "static"
+        static.mkdir()
+        (tmp_path / "secret.txt").write_text("secret")
+        page = static / "index.html"
+        page.write_text("<!-- include: ../secret.txt -->")
+        with pytest.raises(FileNotFoundError):
+            render_page(page, static)
 
 
 class TestRequiredConfiguration:
@@ -323,15 +356,28 @@ class TestRequiredConfiguration:
         monkeypatch.setenv("PROVIDER", "gemini")
         monkeypatch.setenv("GEMINI_API_KEY", "test-key-000000000000")
 
-    def test_missing_output_dir_is_503(self, monkeypatch):
+    @pytest.fixture
+    def bad_output_config(self, tmp_path, monkeypatch):
+        """Point [app] output_dir at a path instead of a variable name."""
+        path = tmp_path / "bad.ini"
+        path.write_text("[app]\noutput_dir = ~/notebooks\n")
+        monkeypatch.setenv("PAPER_TO_NOTEBOOK_CONFIG", str(path))
+
+    def test_unset_output_dir_defaults_to_downloads(
+        self, tmp_path, monkeypatch
+    ):
         monkeypatch.delenv("NOTEBOOK_OUTPUT_DIR")
+        monkeypatch.setenv("HOME", str(tmp_path))
+        assert api_main.get_output_dir() == tmp_path / "Downloads"
+        assert api_main.check_configuration() == []
+
+    def test_invalid_output_dir_is_503(self, bad_output_config):
         with pytest.raises(HTTPException) as info:
             api_main.get_output_dir()
         assert info.value.status_code == 503
-        assert "export NOTEBOOK_OUTPUT_DIR" in info.value.detail
+        assert "must name an environment variable" in info.value.detail
 
-    def test_output_dir_checked_before_llm_call(self, monkeypatch):
-        monkeypatch.delenv("NOTEBOOK_OUTPUT_DIR")
+    def test_output_dir_checked_before_llm_call(self, bad_output_config):
         provider = FakeProvider()
         api_main.app.dependency_overrides[get_llm_provider] = lambda: provider
         try:
@@ -342,19 +388,20 @@ class TestRequiredConfiguration:
         finally:
             api_main.app.dependency_overrides.clear()
         assert response.status_code == 503
-        assert "NOTEBOOK_OUTPUT_DIR" in response.json()["detail"]
+        assert "output_dir" in response.json()["detail"]
         assert provider.calls == []  # no paid request was made
 
     def test_check_configuration_ok(self):
         assert api_main.check_configuration() == []
 
-    def test_check_configuration_lists_every_problem(self, monkeypatch):
-        for var in ("PROVIDER", "NOTEBOOK_OUTPUT_DIR"):
-            monkeypatch.delenv(var)
+    def test_check_configuration_lists_every_problem(
+        self, monkeypatch, bad_output_config
+    ):
+        monkeypatch.delenv("PROVIDER")
         problems = api_main.check_configuration()
         assert len(problems) == 2
         assert "export PROVIDER" in problems[0]
-        assert "export NOTEBOOK_OUTPUT_DIR" in problems[1]
+        assert "output_dir" in problems[1]
 
     def test_startup_warns_about_problems(self, monkeypatch, caplog):
         monkeypatch.delenv("PROVIDER")

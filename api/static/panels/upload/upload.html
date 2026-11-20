@@ -1,0 +1,17 @@
+<!-- 2. Upload -->
+<section class="panel" id="upload-panel" aria-labelledby="upload-h">
+  <div class="panel-head">
+    <h2 id="upload-h"><span class="num">2</span>Upload paper</h2>
+  </div>
+  <form id="form">
+    <label class="drop" id="drop" for="file">
+      <strong>Choose a PDF</strong> or drag it here
+      <span id="file-name">No file chosen (max 15 MB)</span>
+    </label>
+    <input id="file" name="file" type="file" accept=".pdf,application/pdf"
+      required>
+    <button class="primary" id="submit" type="submit" disabled>
+      Convert to notebook</button>
+  </form>
+  <p id="status" role="status" aria-live="polite"></p>
+</section>

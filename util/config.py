@@ -23,6 +23,8 @@ __all__ = [
     "DEFAULT_CONFIG_PATH",
     "OUTPUT_DIR_ENV_VAR",
     "PROJECT_ROOT",
+    "default_output_dir",
+    "locate_output_dir",
     "resolve_output_dir",
     "find_api_key",
     "locate_api_key",
@@ -100,32 +102,38 @@ def find_api_key(env_vars: tuple[str, ...]) -> str | None:
     return found[1] if found else None
 
 
-def resolve_output_dir(
+def default_output_dir() -> Path:
+    """The folder used when the output variable is not set: ``~/Downloads``."""
+    return Path.home() / "Downloads"
+
+
+def locate_output_dir(
     config: configparser.ConfigParser | None = None,
-) -> Path:
-    """Return the folder where generated notebooks are saved.
+) -> tuple[Path, str]:
+    """Return the output folder and where it came from.
 
     ``[app] output_dir`` in the config names the environment variable that
-    holds the folder (``NOTEBOOK_OUTPUT_DIR``). There is no default: the
-    variable must be set. ``~`` and ``$VARIABLES`` in its value are
-    expanded, and a relative path is resolved from the project root.
+    holds the folder (``NOTEBOOK_OUTPUT_DIR`` if the key is missing). If
+    that variable is not set, the folder is ``~/Downloads``. ``~`` and
+    ``$VARIABLES`` in the value are expanded, and a relative path is
+    resolved from the project root.
 
     Args:
         config: Parsed config. Defaults to :func:`load_config`.
 
+    Returns:
+        ``(folder, source)``, where source is ``"$VARIABLE"`` or
+        ``"default"``.
+
     Raises:
-        ConfigError: If ``[app] output_dir`` is missing or is not a variable
-            name, or the variable it names is not set.
+        ConfigError: If ``[app] output_dir`` is not a variable name.
     """
     if config is None:
         config = load_config()
-    env_var = config.get("app", "output_dir", fallback="").strip()
-    if not env_var:
-        raise ConfigError(
-            "No output folder configured: set 'output_dir' under [app] in "
-            f"config.ini to an environment variable name, e.g. "
-            f"{OUTPUT_DIR_ENV_VAR}."
-        )
+    env_var = (
+        config.get("app", "output_dir", fallback="").strip()
+        or OUTPUT_DIR_ENV_VAR
+    )
     if not _ENV_VAR_NAME.match(env_var):
         raise ConfigError(
             f"[app] output_dir must name an environment variable "
@@ -134,13 +142,27 @@ def resolve_output_dir(
 
     value = os.environ.get(env_var, "").strip()
     if not value:
-        raise ConfigError(
-            f"No output folder: export {env_var}, e.g. "
-            f"export {env_var}=~/Downloads"
+        path = default_output_dir()
+        logger.info(
+            "Output folder: %s (default; set $%s to change)", path, env_var
         )
+        return path, "default"
 
     path = Path(os.path.expandvars(value)).expanduser()
     if not path.is_absolute():
         path = PROJECT_ROOT / path
     logger.info("Output folder: %s (from $%s)", path, env_var)
-    return path
+    return path, f"${env_var}"
+
+
+def resolve_output_dir(
+    config: configparser.ConfigParser | None = None,
+) -> Path:
+    """Return the folder where generated notebooks are saved.
+
+    See :func:`locate_output_dir`; defaults to ``~/Downloads``.
+
+    Raises:
+        ConfigError: If ``[app] output_dir`` is not a variable name.
+    """
+    return locate_output_dir(config)[0]

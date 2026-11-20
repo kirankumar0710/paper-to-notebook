@@ -28,6 +28,7 @@ from util.config import (
     ConfigError,
     find_api_key,
     load_config,
+    locate_output_dir,
     parse_env_var_list,
     resolve_output_dir,
 )
@@ -443,13 +444,22 @@ class TestOutputDir:
         config = load_config()
         assert config.get("app", "output_dir") == "NOTEBOOK_OUTPUT_DIR"
 
-    def test_variable_is_required(self):
-        with pytest.raises(ConfigError, match="export NOTEBOOK_OUTPUT_DIR"):
-            resolve_output_dir()
+    def test_defaults_to_downloads(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        assert resolve_output_dir() == tmp_path / "Downloads"
+        assert locate_output_dir()[1] == "default"
+
+    def test_blank_variable_uses_default(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.setenv("NOTEBOOK_OUTPUT_DIR", "  ")
+        assert resolve_output_dir() == tmp_path / "Downloads"
 
     def test_reads_folder_from_named_variable(self, tmp_path, monkeypatch):
         monkeypatch.setenv("NOTEBOOK_OUTPUT_DIR", str(tmp_path / "nb"))
-        assert resolve_output_dir() == tmp_path / "nb"
+        assert locate_output_dir() == (
+            tmp_path / "nb",
+            "$NOTEBOOK_OUTPUT_DIR",
+        )
 
     def test_config_can_name_another_variable(self, tmp_path, monkeypatch):
         monkeypatch.setenv("MY_NOTEBOOKS", str(tmp_path / "mine"))
@@ -468,10 +478,12 @@ class TestOutputDir:
         monkeypatch.setenv("NOTEBOOK_OUTPUT_DIR", "$BASE/papers")
         assert resolve_output_dir() == tmp_path / "papers"
 
-    def test_missing_config_key_is_an_error(self, tmp_path, monkeypatch):
-        monkeypatch.setenv("NOTEBOOK_OUTPUT_DIR", str(tmp_path))
-        with pytest.raises(ConfigError, match="output_dir"):
-            resolve_output_dir(self._config(tmp_path, ""))
+    def test_missing_config_key_uses_default_variable(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("NOTEBOOK_OUTPUT_DIR", str(tmp_path / "nb"))
+        config = self._config(tmp_path, "")
+        assert resolve_output_dir(config) == tmp_path / "nb"
 
     def test_path_instead_of_variable_name_is_an_error(
         self, tmp_path, monkeypatch

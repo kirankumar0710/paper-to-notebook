@@ -4,285 +4,34 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Paper to Notebook</title>
-<style>
-  :root {
-    --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --muted: #5d6677;
-    --border: #d5dae3; --accent: #2f6fde; --accent-text: #ffffff;
-    --error: #b42318; --ok: #1a7f37;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #12151b; --card: #1b1f27; --text: #e6e9ef; --muted: #9aa3b2;
-      --border: #333a46; --accent: #5b8ff0; --accent-text: #0d1117;
-      --error: #ff7b72; --ok: #56d364;
-    }
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; min-height: 100vh; display: grid; place-items: center;
-    padding: 16px; background: var(--bg); color: var(--text);
-    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
-  }
-  main {
-    width: 100%; max-width: 520px; background: var(--card);
-    border: 1px solid var(--border); border-radius: 12px; padding: 28px;
-  }
-  h1 { margin: 0 0 4px; font-size: 1.4rem; }
-  p.lead { margin: 0 0 20px; color: var(--muted); }
-  label.drop {
-    display: block; border: 2px dashed var(--border); border-radius: 10px;
-    padding: 28px 16px; text-align: center; cursor: pointer;
-  }
-  label.drop:hover, label.drop.dragging { border-color: var(--accent); }
-  label.drop strong { color: var(--accent); }
-  #file-name { display: block; margin-top: 8px; color: var(--muted);
-    overflow-wrap: anywhere; }
-  input[type=file] { position: absolute; opacity: 0; width: 1px;
-    height: 1px; }
-  button {
-    margin-top: 16px; width: 100%; padding: 12px; border: 0;
-    border-radius: 8px; background: var(--accent); color: var(--accent-text);
-    font: inherit; font-weight: 600; cursor: pointer;
-  }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
-  #status { margin: 14px 0 0; min-height: 1.5em; }
-  #status.error { color: var(--error); }
-  #status.ok { color: var(--ok); }
-  #progress { margin-top: 12px; padding: 14px; border: 1px solid var(--border);
-    border-radius: 8px; }
-  #progress[hidden] { display: none; }
-  #steps { display: flex; gap: 6px; margin: 0 0 10px; padding: 0;
-    list-style: none; flex-wrap: wrap; }
-  #steps li { font-size: 0.8rem; padding: 3px 8px; border-radius: 999px;
-    border: 1px solid var(--border); color: var(--muted); }
-  #steps li.active { border-color: var(--accent); color: var(--accent);
-    font-weight: 600; }
-  #steps li.complete { color: var(--ok); border-color: var(--ok); }
-  #stage { margin: 0; font-weight: 600; }
-  #elapsed { color: var(--muted); font-weight: 400; }
-  #thinking { margin: 10px 0 0; padding: 10px; border-radius: 6px;
-    background: var(--bg); color: var(--muted); font-size: 0.85rem;
-    font-style: italic; max-height: 9em; overflow: auto;
-    white-space: pre-wrap; overflow-wrap: anywhere; }
-  #thinking[hidden] { display: none; }
-  #result { margin-top: 12px; padding: 14px; border: 1px solid var(--border);
-    border-radius: 8px; }
-  #result[hidden] { display: none; }
-  #result a.download {
-    display: block; padding: 10px; border-radius: 8px; text-align: center;
-    background: var(--ok); color: var(--card); font-weight: 600;
-    text-decoration: none; overflow-wrap: anywhere;
-  }
-  #result p { margin: 10px 0 0; font-size: 0.9rem; color: var(--muted);
-    overflow-wrap: anywhere; }
-  footer { margin-top: 18px; font-size: 0.85rem; color: var(--muted); }
-  footer a { color: var(--accent); }
-</style>
+<!-- Shared theme and layout, then each panel's own styles. -->
+<link rel="stylesheet" href="/static/base.css">
+<link rel="stylesheet" href="/static/panels/config/config.css">
+<link rel="stylesheet" href="/static/panels/upload/upload.css">
+<link rel="stylesheet" href="/static/panels/output/output.css">
+<link rel="stylesheet" href="/static/panels/metrics/metrics.css">
+<link rel="stylesheet" href="/static/panels/download/download.css">
 </head>
 <body>
-<main>
-  <h1>Paper to Notebook</h1>
-  <p class="lead">Upload a research paper PDF and get a Google Colab notebook
-    that explains and implements it.</p>
-
-  <form id="form">
-    <label class="drop" id="drop" for="file">
-      <strong>Choose a PDF</strong> or drag it here
-      <span id="file-name">No file chosen (max 15 MB)</span>
-    </label>
-    <input id="file" name="file" type="file" accept=".pdf,application/pdf"
-      required>
-    <button id="submit" type="submit" disabled>Convert to notebook</button>
-  </form>
-  <p id="status" role="status" aria-live="polite"></p>
-  <div id="progress" hidden>
-    <ol id="steps">
-      <li data-step="uploaded">Upload</li>
-      <li data-step="waiting">Sent</li>
-      <li data-step="thinking">Thinking</li>
-      <li data-step="writing">Writing</li>
-      <li data-step="building">Building</li>
-    </ol>
-    <p id="stage">Starting… <span id="elapsed"></span></p>
-    <p id="thinking" hidden></p>
+<header>
+  <div>
+    <h1>Paper to Notebook</h1>
+    <p>Turn a research paper PDF into a Google Colab notebook that explains
+      and implements it.</p>
   </div>
-  <div id="result" hidden>
-    <a id="download-link" class="download" href="#">Download notebook</a>
-    <p id="saved-path"></p>
-  </div>
+  <nav><a href="/docs">API docs</a><a href="/health">Health</a></nav>
+</header>
 
-  <footer>Open the downloaded <code>.ipynb</code> in Colab with
-    File → Upload notebook. API docs: <a href="/docs">/docs</a></footer>
+<!-- The server (api/routes/dashboard.py) replaces each include line with
+     that panel's HTML file. Where each panel sits is set in base.css. -->
+<main class="grid">
+  <!-- include: panels/config/config.html -->
+  <!-- include: panels/upload/upload.html -->
+  <!-- include: panels/metrics/metrics.html -->
+  <!-- include: panels/output/output.html -->
+  <!-- include: panels/download/download.html -->
 </main>
 
-<script>
-  const form = document.getElementById("form");
-  const input = document.getElementById("file");
-  const drop = document.getElementById("drop");
-  const fileName = document.getElementById("file-name");
-  const submit = document.getElementById("submit");
-  const statusEl = document.getElementById("status");
-  const resultEl = document.getElementById("result");
-  const downloadLink = document.getElementById("download-link");
-  const savedPathEl = document.getElementById("saved-path");
-  const progressEl = document.getElementById("progress");
-  const stageEl = document.getElementById("stage");
-  const elapsedEl = document.getElementById("elapsed");
-  const thinkingEl = document.getElementById("thinking");
-  const STEPS = ["uploaded", "waiting", "thinking", "writing", "building"];
-
-  function setStatus(text, kind) {
-    statusEl.textContent = text;
-    statusEl.className = kind || "";
-  }
-
-  function showFile() {
-    const file = input.files[0];
-    fileName.textContent = file ? file.name : "No file chosen (max 15 MB)";
-    submit.disabled = !file;
-    setStatus("");
-  }
-
-  input.addEventListener("change", showFile);
-
-  ["dragenter", "dragover"].forEach((type) =>
-    drop.addEventListener(type, (event) => {
-      event.preventDefault();
-      drop.classList.add("dragging");
-    }));
-  ["dragleave", "drop"].forEach((type) =>
-    drop.addEventListener(type, () => drop.classList.remove("dragging")));
-  drop.addEventListener("drop", (event) => {
-    event.preventDefault();
-    if (event.dataTransfer.files.length) {
-      input.files = event.dataTransfer.files;
-      showFile();
-    }
-  });
-
-  function showStep(stage) {
-    const index = STEPS.indexOf(stage === "retrying" ? "waiting" : stage);
-    if (index < 0) return;
-    document.querySelectorAll("#steps li").forEach((li, i) => {
-      li.className = i < index ? "complete" : i === index ? "active" : "";
-    });
-  }
-
-  function showProgress(update) {
-    showStep(update.stage);
-    stageEl.firstChild.textContent = update.message + " ";
-    if (update.thinking) {
-      thinkingEl.textContent = "“" + update.thinking + "”";
-      thinkingEl.hidden = false;
-      thinkingEl.scrollTop = thinkingEl.scrollHeight;
-    }
-  }
-
-  // Reads a text/event-stream response and calls onEvent(name, data).
-  async function readEvents(response, onEvent) {
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      let boundary;
-      while ((boundary = buffer.indexOf("\n\n")) >= 0) {
-        const block = buffer.slice(0, boundary);
-        buffer = buffer.slice(boundary + 2);
-        let name = "message", data = "";
-        for (const line of block.split("\n")) {
-          if (line.startsWith("event: ")) name = line.slice(7);
-          else if (line.startsWith("data: ")) data += line.slice(6);
-        }
-        if (data) onEvent(name, JSON.parse(data));
-      }
-    }
-  }
-
-  function showResult(result) {
-    const blob = new Blob([result.notebook],
-      { type: "application/x-ipynb+json" });
-    // Keep a visible link: browsers may block the automatic download
-    // below because it happens long after the button was clicked.
-    downloadLink.href = URL.createObjectURL(blob);
-    downloadLink.download = result.filename;
-    downloadLink.textContent = `Download ${result.filename}`;
-    savedPathEl.textContent = result.saved_path
-      ? `A copy was also saved on the server: ${result.saved_path}`
-      : "";
-    resultEl.hidden = false;
-    downloadLink.click();
-  }
-
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const file = input.files[0];
-    if (!file) return;
-
-    submit.disabled = true;
-    resultEl.hidden = true;
-    thinkingEl.hidden = true;
-    thinkingEl.textContent = "";
-    if (downloadLink.href.startsWith("blob:")) {
-      URL.revokeObjectURL(downloadLink.href);
-    }
-    setStatus("");
-    progressEl.hidden = false;
-    showProgress({ stage: "uploaded", message: `Uploading ${file.name}…` });
-
-    const startedAt = Date.now();
-    const timer = setInterval(() => {
-      const seconds = Math.round((Date.now() - startedAt) / 1000);
-      elapsedEl.textContent = `· ${Math.floor(seconds / 60)}m ` +
-        `${String(seconds % 60).padStart(2, "0")}s`;
-    }, 1000);
-
-    try {
-      const body = new FormData();
-      body.append("file", file);
-      const response = await fetch("/convert/stream",
-        { method: "POST", body });
-      if (!response.ok) {
-        let detail = response.statusText;
-        try { detail = (await response.json()).detail || detail; }
-        catch (_) { /* keep statusText */ }
-        throw new Error(typeof detail === "string"
-          ? detail : JSON.stringify(detail));
-      }
-
-      let finished = false;
-      await readEvents(response, (name, data) => {
-        if (name === "progress") {
-          showProgress(data);
-        } else if (name === "result") {
-          finished = true;
-          document.querySelectorAll("#steps li")
-            .forEach((li) => { li.className = "complete"; });
-          clearInterval(timer);
-          elapsedEl.textContent = "";
-          stageEl.firstChild.textContent =
-            `Done in ${Math.round(data.elapsed)}s — ${data.cells} cells.`;
-          showResult(data);
-          setStatus("Your notebook is ready. If it did not download " +
-            "automatically, use the button below.", "ok");
-        } else if (name === "error") {
-          finished = true;
-          throw new Error(data.detail);
-        }
-      });
-      if (!finished) {
-        throw new Error("The connection closed before the notebook was " +
-          "ready. It may still be saved on the server.");
-      }
-    } catch (error) {
-      setStatus(`Conversion failed: ${error.message}`, "error");
-    } finally {
-      clearInterval(timer);
-      submit.disabled = !input.files[0];
-    }
-  });
-</script>
+<script type="module" src="/static/app.js"></script>
 </body>
 </html>

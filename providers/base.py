@@ -17,6 +17,7 @@ __all__ = [
     "RETRY_INITIAL_DELAY",
     "RETRY_MAX_DELAY",
     "LLMProvider",
+    "token_usage",
     "ProviderError",
     "ProviderSettings",
 ]
@@ -99,6 +100,11 @@ class Progress:
         elapsed: Seconds since the request was sent.
         output_chars: Characters of the reply received so far.
         thinking: Latest excerpt of the model's thinking summary, if any.
+        thinking_delta: Thinking summary text received since the previous
+            update, so a client can show the whole summary by appending.
+        usage: Token counts (``input_tokens``, ``output_tokens``,
+            ``total_tokens``), sent with the final ``done`` update when the
+            provider reports them.
     """
 
     stage: str
@@ -106,6 +112,8 @@ class Progress:
     elapsed: float = 0.0
     output_chars: int = 0
     thinking: str | None = None
+    thinking_delta: str | None = None
+    usage: dict[str, int] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -114,7 +122,32 @@ class Progress:
             "elapsed": round(self.elapsed, 1),
             "output_chars": self.output_chars,
             "thinking": self.thinking,
+            "thinking_delta": self.thinking_delta,
+            "usage": self.usage,
         }
+
+
+def token_usage(
+    input_tokens: Any, output_tokens: Any, total_tokens: Any = None
+) -> dict[str, int] | None:
+    """Build a usage dict from SDK counts, or None if none are known.
+
+    Counts that are not integers (missing from the response) become 0.
+    The total defaults to input + output.
+    """
+
+    def count(value: Any) -> int | None:
+        return value if isinstance(value, int) else None
+
+    counts = [count(input_tokens), count(output_tokens), count(total_tokens)]
+    if all(value is None for value in counts):
+        return None
+    inp, out, total = (value or 0 for value in counts)
+    return {
+        "input_tokens": inp,
+        "output_tokens": out,
+        "total_tokens": total or inp + out,
+    }
 
 
 ProgressCallback = Callable[[Progress], None]

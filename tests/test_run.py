@@ -58,10 +58,14 @@ class TestReportProvider:
         assert "export PROVIDER" in out
         assert "will fail until the variables above are exported" in out
 
-    def test_warns_about_missing_output_dir(self, capsys, monkeypatch):
+    def test_unset_output_dir_uses_downloads(
+        self, capsys, monkeypatch, tmp_path
+    ):
         monkeypatch.delenv("NOTEBOOK_OUTPUT_DIR")
-        assert run.report_provider() is False
-        assert "export NOTEBOOK_OUTPUT_DIR" in capsys.readouterr().out
+        monkeypatch.setenv("HOME", str(tmp_path))
+        assert run.report_provider() is True
+        out = capsys.readouterr().out
+        assert f"Output folder: {tmp_path / 'Downloads'} (default" in out
 
     def test_warns_about_missing_key(self, capsys, monkeypatch):
         monkeypatch.setenv("PROVIDER", "gemini")

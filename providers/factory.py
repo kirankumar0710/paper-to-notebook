@@ -118,12 +118,19 @@ def resolve_settings(
     model: str | None = None,
     base_url: str | None = None,
     config: configparser.ConfigParser | None = None,
+    require_key: bool = True,
 ) -> ProviderSettings:
     """Resolve the provider's settings without creating an SDK client.
 
+    Args:
+        require_key: When False, a missing API key is not an error; the
+            returned settings have ``api_key=None`` (used to show the
+            configuration).
+
     Raises:
         ConfigError: If the provider is missing or unknown, no model is
-            configured, or none of the provider's API key variables is set.
+            configured, or (when ``require_key``) none of the provider's
+            API key variables is set.
     """
     provider_name = resolve_provider_name(name)
     if config is None:
@@ -179,7 +186,9 @@ def resolve_settings(
         base_url_source,
     )
     if not settings.api_key:
-        raise ConfigError(settings.missing_key_message())
+        if require_key:
+            raise ConfigError(settings.missing_key_message())
+        return settings
     logger.info("API key: %s", settings.describe_key())
     return settings
 
