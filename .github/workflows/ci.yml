@@ -31,7 +31,7 @@ jobs:
         run: ruff check .
 
       - name: Run tests
-        run: pytest tests/ -v
+        run: pytest tests/ -v --cov
 
   deploy:
     needs: lint-and-test

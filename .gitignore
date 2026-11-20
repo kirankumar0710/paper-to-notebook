@@ -10,3 +10,7 @@ build/
 .pytest_cache/
 .ruff_cache/
 *.ipynb_checkpoints/
+
+# Generated notebooks
+output/
+.coverage

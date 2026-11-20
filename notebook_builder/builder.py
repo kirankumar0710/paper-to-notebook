@@ -1,117 +1,102 @@
-"""
-Notebook Builder — Assembles extracted sections into a Jupyter .ipynb file.
+"""Turn the model's notebook description into a Colab-ready ``.ipynb``."""
 
-This builder is purely mechanical: it takes extracted text and reformats
-it into notebook cells. There is NO intelligence here — no code generation,
-no LaTeX extraction, no understanding of the paper's content.
+from __future__ import annotations
 
-Compare this to the LLM-powered version which actually generates
-implementations of the paper's algorithms.
-"""
+import re
+import shlex
+from typing import Any
 
-import nbformat
-from nbformat.v4 import new_notebook, new_code_cell, new_markdown_cell
+from nbformat import NotebookNode
+from nbformat.v4 import new_code_cell, new_markdown_cell, new_notebook
 
-from pdf_processor.extractor import extract_code_blocks
+from util.log import get_logger
 
+__all__ = ["build_notebook"]
 
-# Hardcoded setup cell — we guess common dependencies
-SETUP_CODE = """# Setup — install common dependencies
-# NOTE: We're guessing which packages are needed. This often includes
-# packages the notebook doesn't actually use, and misses ones it does.
-!pip install torch torchvision numpy matplotlib scipy pandas -q
-"""
+logger = get_logger(__name__)
 
+# Package specs such as "torch", "einops>=0.7", "jax[cuda12]". Anything
+# else (spaces, quotes, ";", "&&") is dropped so the install cell cannot
+# run arbitrary shell commands.
+_PACKAGE_SPEC = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._\-\[\],<>=!~*+]*$")
 
-def _make_title_cell(title: str) -> nbformat.NotebookNode:
-    """Create the title cell for the notebook."""
-    return new_markdown_cell(
-        f"# {title}\n\n"
-        f"*Auto-generated notebook from research paper.*\n\n"
-        f"---"
-    )
+DISCLAIMER = (
+    "*Generated from the research paper by an LLM. "
+    "Review the code before relying on its results.*"
+)
 
 
-def _make_section_cell(section: dict) -> nbformat.NotebookNode:
-    """Convert a section to a markdown cell."""
-    title = section["title"]
-    content = section["content"].strip()
-
-    # Clean up the content a bit
-    # Remove excessive blank lines
-    while "\n\n\n" in content:
-        content = content.replace("\n\n\n", "\n\n")
-
-    return new_markdown_cell(f"## {title}\n\n{content}")
-
-
-def _make_code_cell(code: str) -> nbformat.NotebookNode:
-    """Create a code cell from extracted code."""
-    # Strip leading whitespace uniformly
-    lines = code.split("\n")
-    if lines:
-        # Find minimum indentation
-        indents = [
-            len(line) - len(line.lstrip())
-            for line in lines
-            if line.strip()
-        ]
-        min_indent = min(indents) if indents else 0
-        lines = [line[min_indent:] for line in lines]
-
-    return new_code_cell("\n".join(lines))
+def _pip_install_cell(packages: list[str]) -> NotebookNode | None:
+    """Build a ``!pip install`` cell for valid, de-duplicated packages."""
+    unique = dict.fromkeys(p.strip() for p in packages)
+    valid = [p for p in unique if _PACKAGE_SPEC.match(p)]
+    dropped = [p for p in unique if p not in valid]
+    if dropped:
+        logger.warning("Dropped unsafe pip package specs: %s", dropped)
+    if not valid:
+        return None
+    args = " ".join(shlex.quote(p) for p in valid)
+    return new_code_cell(f"!pip install -q {args}")
 
 
-def build_notebook(paper_data: dict) -> nbformat.NotebookNode:
-    """Build a Jupyter notebook from extracted paper data.
+def _validate(spec: dict[str, Any]) -> None:
+    """Check the parts of the model's reply that the builder relies on."""
+    if not isinstance(spec.get("title"), str):
+        raise ValueError("Notebook spec is missing a 'title' string.")
+    cells = spec.get("cells")
+    if not isinstance(cells, list) or not cells:
+        raise ValueError("Notebook spec has no cells.")
+    for index, cell in enumerate(cells):
+        if not isinstance(cell, dict) or cell.get("cell_type") not in (
+            "markdown",
+            "code",
+        ):
+            raise ValueError(f"Cell {index} has an invalid 'cell_type'.")
+        if not isinstance(cell.get("source"), str):
+            raise ValueError(f"Cell {index} has no 'source' string.")
+
+
+def build_notebook(
+    spec: dict[str, Any], *, filename: str = "notebook.ipynb"
+) -> NotebookNode:
+    """Assemble a Colab notebook from a spec matching ``NOTEBOOK_SCHEMA``.
 
     Args:
-        paper_data: Dictionary from extract_text() containing:
-            - title: Paper title
-            - sections: List of {title, content} dicts
-            - page_count: Number of pages
+        spec: The model's reply: title, pip packages, GPU flag and cells.
+        filename: Name Colab shows for the notebook.
 
     Returns:
-        A nbformat NotebookNode that can be written to a .ipynb file.
+        A notebook node that can be written to an ``.ipynb`` file.
+
+    Raises:
+        ValueError: If the spec is missing required fields.
     """
-    nb = new_notebook()
-    cells = []
+    _validate(spec)
 
-    # Title cell
-    cells.append(_make_title_cell(paper_data["title"]))
+    cells = [new_markdown_cell(f"# {spec['title'].strip()}\n\n{DISCLAIMER}")]
+    install_cell = _pip_install_cell(spec.get("pip_packages") or [])
+    if install_cell is not None:
+        cells.append(install_cell)
+    for cell in spec["cells"]:
+        source = cell["source"].strip("\n")
+        if cell["cell_type"] == "code":
+            cells.append(new_code_cell(source))
+        else:
+            cells.append(new_markdown_cell(source))
 
-    # Setup cell with hardcoded dependencies
-    cells.append(new_code_cell(SETUP_CODE))
-
-    # Add each section
-    for section in paper_data["sections"]:
-        # Add section as markdown
-        cells.append(_make_section_cell(section))
-
-        # Try to find code blocks in this section
-        code_blocks = extract_code_blocks(section["content"])
-        for code in code_blocks:
-            cells.append(_make_code_cell(code))
-
-    # Add a placeholder conclusion cell
-    cells.append(
-        new_markdown_cell(
-            "---\n\n"
-            "## Notes\n\n"
-            "This notebook was auto-generated from a PDF. "
-            "The code blocks above were extracted from the paper using "
-            "heuristic detection and may not be accurate or runnable.\n\n"
-            "**Manual review is required before running any code cells.**"
-        )
+    notebook = new_notebook(cells=cells)
+    notebook.metadata.update(
+        {
+            "kernelspec": {
+                "display_name": "Python 3",
+                "language": "python",
+                "name": "python3",
+            },
+            "language_info": {"name": "python"},
+            "colab": {"name": filename, "provenance": []},
+        }
     )
-
-    nb.cells = cells
-
-    # Set kernel metadata
-    nb.metadata.kernelspec = {
-        "display_name": "Python 3",
-        "language": "python",
-        "name": "python3",
-    }
-
-    return nb
+    if spec.get("requires_gpu"):
+        notebook.metadata["accelerator"] = "GPU"
+        notebook.metadata["colab"]["gpuType"] = "T4"
+    return notebook
