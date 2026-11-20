@@ -3,6 +3,8 @@
   <div class="panel-head">
     <h2 id="metrics-h"><span class="num">4</span>Metrics</h2>
   </div>
+
+  <p class="label first">Tokens &amp; cost</p>
   <div class="tiles">
     <div class="tile"><div class="k">Input tokens</div>
       <div class="v" id="m-in">—</div><div class="d">paper + prompt</div></div>
@@ -11,19 +13,64 @@
       <div class="d">thinking + notebook</div></div>
     <div class="tile"><div class="k">Total tokens</div>
       <div class="v" id="m-total">—</div><div class="d"></div></div>
-    <div class="tile"><div class="k">Time</div>
+    <div class="tile"><div class="k">Estimated cost</div>
+      <div class="v" id="m-cost">—</div>
+      <div class="d" id="m-cost-d"></div></div>
+    <div class="tile"><div class="k">Output budget used</div>
+      <div class="v" id="m-budget">—</div>
+      <div class="meter"><span id="m-budget-bar"></span></div>
+      <div class="d" id="m-budget-d"></div></div>
+  </div>
+
+  <p class="label">Time</p>
+  <div class="tiles">
+    <div class="tile"><div class="k">Total time</div>
       <div class="v" id="m-time">—</div>
       <div class="d" id="m-time-d"></div></div>
+    <div class="tile"><div class="k">Output speed</div>
+      <div class="v" id="m-speed">—</div>
+      <div class="d" id="m-speed-d"></div></div>
+    <div class="tile wide"><div class="k">Time per stage</div>
+      <div class="stages" id="m-stages" aria-hidden="true"></div>
+      <ul class="stage-legend" id="m-stage-legend"></ul></div>
+  </div>
+
+  <p class="label">Paper &amp; notebook</p>
+  <div class="tiles">
+    <div class="tile"><div class="k">Pages</div>
+      <div class="v" id="m-pages">—</div>
+      <div class="d" id="m-pages-d"></div></div>
     <div class="tile"><div class="k">Upload size</div>
       <div class="v" id="m-upload">—</div>
       <div class="d" id="m-upload-d"></div></div>
     <div class="tile"><div class="k">Notebook size</div>
-      <div class="v" id="m-nb">—</div><div class="d"></div></div>
+      <div class="v" id="m-nb">—</div>
+      <div class="d" id="m-chars-d"></div></div>
     <div class="tile"><div class="k">Cells</div>
       <div class="v" id="m-cells">—</div>
       <div class="d" id="m-cells-d"></div></div>
-    <div class="tile"><div class="k">Characters written</div>
-      <div class="v" id="m-chars">—</div><div class="d"></div></div>
+    <div class="tile"><div class="k">Lines of code</div>
+      <div class="v" id="m-code">—</div><div class="d"></div></div>
+    <div class="tile"><div class="k">Extra packages</div>
+      <div class="v" id="m-pkgs">—</div>
+      <div class="d" id="m-pkgs-d"></div></div>
+    <div class="tile"><div class="k">GPU</div>
+      <div class="v" id="m-gpu">—</div><div class="d"></div></div>
   </div>
+
   <p id="metrics-note">Metrics appear when a conversion runs.</p>
+  <p id="metrics-served" hidden></p>
+
+  <p class="label">Since the server started</p>
+  <div class="tiles">
+    <div class="tile"><div class="k">Conversions</div>
+      <div class="v" id="s-count">—</div>
+      <div class="d" id="s-count-d"></div></div>
+    <div class="tile"><div class="k">Tokens</div>
+      <div class="v" id="s-tokens">—</div>
+      <div class="d" id="s-tokens-d"></div></div>
+    <div class="tile"><div class="k">Estimated cost</div>
+      <div class="v" id="s-cost">—</div>
+      <div class="d" id="s-cost-d"></div></div>
+  </div>
 </section>

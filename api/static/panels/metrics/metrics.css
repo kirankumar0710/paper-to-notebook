@@ -1,10 +1,41 @@
 /* 4. Metrics */
+#metrics-panel .label.first { margin-top: 0; }
 .tiles { display: grid; gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
 .tile { padding: 10px 12px; border-radius: 8px; background: var(--subtle);
   min-width: 0; }
+.tile.wide { grid-column: span 2; }
+@media (max-width: 420px) { .tile.wide { grid-column: auto; } }
 .tile .k { font-size: 0.75rem; color: var(--muted); }
 .tile .v { font-size: 1.3rem; font-weight: 600;
   font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.tile .d { font-size: 0.75rem; color: var(--muted); min-height: 1.1em; }
-#metrics-note { margin: 10px 0 0; font-size: 0.8rem; color: var(--muted); }
+.tile .v.warn { color: var(--warn); }
+.tile .d { font-size: 0.75rem; color: var(--muted); min-height: 1.1em;
+  overflow-wrap: anywhere; }
+
+/* Output budget meter */
+.meter { height: 6px; margin: 4px 0 2px; border-radius: 3px;
+  background: var(--border); overflow: hidden; }
+.meter span { display: block; height: 100%; width: 0; background: var(--ok); }
+.meter span.warn { background: var(--warn); }
+.meter span.bad { background: var(--error); }
+
+/* Time per stage: one stacked bar plus a legend */
+.stages { display: flex; height: 10px; margin: 8px 0 6px; border-radius: 5px;
+  overflow: hidden; background: var(--border); }
+.stages span { height: 100%; min-width: 2px; }
+.stage-legend { list-style: none; margin: 0; padding: 0; display: flex;
+  flex-wrap: wrap; gap: 2px 12px; font-size: 0.75rem; color: var(--muted); }
+.stage-legend li { display: inline-flex; align-items: center; gap: 5px;
+  font-variant-numeric: tabular-nums; }
+.stage-legend i { width: 8px; height: 8px; border-radius: 2px; }
+.stage-upload { background: #8a94a6; }
+.stage-waiting { background: #c49a2c; }
+.stage-retrying { background: #d4622a; }
+.stage-thinking { background: #7c5cd6; }
+.stage-writing { background: var(--accent); }
+.stage-building { background: var(--ok); }
+
+#metrics-note, #metrics-served { margin: 10px 0 0; font-size: 0.8rem;
+  color: var(--muted); overflow-wrap: anywhere; }
+#metrics-served.warn { color: var(--warn); }

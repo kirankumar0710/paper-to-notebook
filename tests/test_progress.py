@@ -254,6 +254,7 @@ class TestProgressCallbacks:
             "thinking": None,
             "thinking_delta": None,
             "usage": None,
+            "served": None,
         }
 
     def test_claude_reports_usage_when_done(self):

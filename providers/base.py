@@ -105,6 +105,11 @@ class Progress:
         usage: Token counts (``input_tokens``, ``output_tokens``,
             ``total_tokens``), sent with the final ``done`` update when the
             provider reports them.
+        served: What actually handled the request, sent with ``done``:
+            ``model``, ``speed`` (``fast``/``standard``, or None if the
+            provider has no speeds), ``model_fallback`` (a fallback model
+            answered) and ``speed_fallback`` (fast mode fell back to
+            standard).
     """
 
     stage: str
@@ -114,6 +119,7 @@ class Progress:
     thinking: str | None = None
     thinking_delta: str | None = None
     usage: dict[str, int] | None = None
+    served: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -124,6 +130,7 @@ class Progress:
             "thinking": self.thinking,
             "thinking_delta": self.thinking_delta,
             "usage": self.usage,
+            "served": self.served,
         }
 
 
@@ -166,6 +173,16 @@ class LLMProvider(ABC):
     @property
     def model(self) -> str:
         return self.settings.model
+
+    @property
+    def requested_speed(self) -> str | None:
+        """``fast`` or ``standard`` if the provider has speeds, else None."""
+        return None
+
+    @property
+    def max_output_tokens(self) -> int | None:
+        """The output token budget sent with each request, if any."""
+        return None
 
     @abstractmethod
     def generate_json(

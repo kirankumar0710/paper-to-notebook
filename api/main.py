@@ -21,7 +21,7 @@ from api.dependencies import (
     get_llm_provider,
     get_output_dir,
 )
-from api.routes import config, convert, dashboard, download
+from api.routes import config, convert, dashboard, download, metrics
 from api.routes.config import describe_configuration, health
 from api.routes.convert import (
     convert_pdf_to_notebook,
@@ -83,8 +83,10 @@ app.add_middleware(
 # The dashboard and its panels' CSS/JS.
 app.include_router(dashboard.router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-# One router per panel: 1 Configuration, 2-4 Upload/Output/Metrics,
+# One router per panel: 1 Configuration, 2-4 Upload/Output/Metrics
+# (convert streams the per-run metrics; metrics keeps session totals),
 # 5 Download.
 app.include_router(config.router)
 app.include_router(convert.router)
+app.include_router(metrics.router)
 app.include_router(download.router)

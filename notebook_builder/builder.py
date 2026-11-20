@@ -11,7 +11,7 @@ from nbformat.v4 import new_code_cell, new_markdown_cell, new_notebook
 
 from util.log import get_logger
 
-__all__ = ["build_notebook"]
+__all__ = ["build_notebook", "split_packages"]
 
 logger = get_logger(__name__)
 
@@ -26,11 +26,21 @@ DISCLAIMER = (
 )
 
 
-def _pip_install_cell(packages: list[str]) -> NotebookNode | None:
-    """Build a ``!pip install`` cell for valid, de-duplicated packages."""
-    unique = dict.fromkeys(p.strip() for p in packages)
+def split_packages(packages: list[Any]) -> tuple[list[str], list[str]]:
+    """De-duplicate pip specs and split them into ``(valid, dropped)``.
+
+    Dropped specs are anything that is not a plain package spec (e.g. it
+    contains spaces, quotes or shell operators).
+    """
+    unique = dict.fromkeys(str(p).strip() for p in packages)
     valid = [p for p in unique if _PACKAGE_SPEC.match(p)]
     dropped = [p for p in unique if p not in valid]
+    return valid, dropped
+
+
+def _pip_install_cell(packages: list[str]) -> NotebookNode | None:
+    """Build a ``!pip install`` cell for valid, de-duplicated packages."""
+    valid, dropped = split_packages(packages)
     if dropped:
         logger.warning("Dropped unsafe pip package specs: %s", dropped)
     if not valid:

@@ -7,7 +7,7 @@ from pathlib import PurePath
 
 from nbformat import NotebookNode
 
-from notebook_builder.builder import build_notebook
+from notebook_builder.builder import build_notebook, split_packages
 from notebook_builder.prompt import NOTEBOOK_SCHEMA, SYSTEM_PROMPT, USER_PROMPT
 from providers.base import LLMProvider, Progress, ProgressCallback
 from util.log import get_logger
@@ -22,11 +22,24 @@ logger = get_logger(__name__)
 
 @dataclass(frozen=True)
 class ConvertedNotebook:
-    """A generated notebook and the filename to save it under."""
+    """A generated notebook, the filename to save it under, and facts about
+    its contents for the dashboard.
+
+    Attributes:
+        pip_packages: Extra packages installed by the notebook.
+        dropped_packages: Package specs the model asked for that were
+            removed because they were not plain package names.
+        requires_gpu: Whether the notebook asks Colab for a GPU.
+        code_lines: Non-blank lines in the model's code cells.
+    """
 
     title: str
     filename: str
     notebook: NotebookNode
+    pip_packages: tuple[str, ...] = ()
+    dropped_packages: tuple[str, ...] = ()
+    requires_gpu: bool = False
+    code_lines: int = 0
 
 
 def _notebook_filename(source_name: str | None, title: str) -> str:
@@ -92,4 +105,20 @@ def pdf_to_notebook(
     logger.info(
         "Built notebook %r with %d cells", filename, len(notebook.cells)
     )
-    return ConvertedNotebook(title=title, filename=filename, notebook=notebook)
+    packages, dropped = split_packages(spec.get("pip_packages") or [])
+    code_lines = sum(
+        1
+        for cell in cells
+        if isinstance(cell, dict) and cell.get("cell_type") == "code"
+        for line in str(cell.get("source", "")).splitlines()
+        if line.strip()
+    )
+    return ConvertedNotebook(
+        title=title,
+        filename=filename,
+        notebook=notebook,
+        pip_packages=tuple(packages),
+        dropped_packages=tuple(dropped),
+        requires_gpu=bool(spec.get("requires_gpu")),
+        code_lines=code_lines,
+    )

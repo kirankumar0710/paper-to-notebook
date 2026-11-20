@@ -56,6 +56,7 @@ class _StreamTracker:
         self.text_chars = 0
         self.thinking_text = ""
         self.thinking_sent = 0  # chars of thinking_text already emitted
+        self.speed_fallback = False  # fast mode fell back to standard
         self.last_log = started
         self.last_emit = 0.0
 
@@ -66,6 +67,7 @@ class _StreamTracker:
         *,
         force: bool = False,
         usage: dict[str, int] | None = None,
+        served: dict[str, Any] | None = None,
     ) -> None:
         now = time.monotonic()
         if now - self.last_log >= PROGRESS_LOG_INTERVAL:
@@ -94,6 +96,7 @@ class _StreamTracker:
                 thinking=excerpt or None,
                 thinking_delta=delta or None,
                 usage=usage,
+                served=served,
             )
         )
 
@@ -198,6 +201,42 @@ class ClaudeProvider(LLMProvider):
             )
         self._client = client
 
+    @property
+    def requested_speed(self) -> str:
+        return self.speed
+
+    @property
+    def max_output_tokens(self) -> int:
+        return self.max_tokens
+
+    def _served(
+        self, response: Any, usage: Any, tracker: _StreamTracker
+    ) -> dict[str, Any]:
+        """Which model and speed actually produced the reply."""
+        model = getattr(response, "model", None)
+        if not isinstance(model, str) or not model:
+            model = self.model
+        speed = getattr(usage, "speed", None)
+        if not isinstance(speed, str) or not speed:
+            speed = "standard" if tracker.speed_fallback else self.speed
+        # A fallback model that answered shows up as a "fallback_message"
+        # usage iteration (or a "fallback" content block).
+        iterations = getattr(usage, "iterations", None)
+        blocks = getattr(response, "content", None)
+        model_fallback = any(
+            getattr(item, "type", None) == "fallback_message"
+            for item in (iterations if isinstance(iterations, list) else [])
+        ) or any(
+            getattr(block, "type", None) == "fallback"
+            for block in (blocks if isinstance(blocks, list) else [])
+        )
+        return {
+            "model": model,
+            "speed": speed,
+            "model_fallback": model_fallback,
+            "speed_fallback": self.speed == "fast" and speed != "fast",
+        }
+
     def _build_request(
         self,
         prompt: str,
@@ -267,6 +306,7 @@ class ClaudeProvider(LLMProvider):
                 raise
             reason = f"fast mode not available: {exc.message}"
         logger.warning("Retrying at standard speed: %s", reason)
+        tracker.speed_fallback = True
         tracker.emit(
             "retrying",
             "Fast mode is busy; retrying at standard speed…",
@@ -360,6 +400,7 @@ class ClaudeProvider(LLMProvider):
                 getattr(usage, "input_tokens", None),
                 getattr(usage, "output_tokens", None),
             ),
+            served=self._served(response, usage, tracker),
         )
         try:
             return json.loads(text)

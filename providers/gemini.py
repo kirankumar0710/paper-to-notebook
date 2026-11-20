@@ -156,6 +156,7 @@ class GeminiProvider(LLMProvider):
                     elapsed=time.monotonic() - started,
                     output_chars=len(response.text),
                     usage=_usage(usage),
+                    served=_served(response, self.model),
                 )
             )
         try:
@@ -177,3 +178,16 @@ def _usage(usage: Any) -> dict[str, int] | None:
         output,
         getattr(usage, "total_token_count", None),
     )
+
+
+def _served(response: Any, requested_model: str) -> dict[str, Any]:
+    """The model version Gemini reports; Gemini has no speed modes."""
+    version = getattr(response, "model_version", None)
+    return {
+        "model": version
+        if isinstance(version, str) and version
+        else (requested_model),
+        "speed": None,
+        "model_fallback": False,
+        "speed_fallback": False,
+    }

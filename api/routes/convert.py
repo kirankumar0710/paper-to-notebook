@@ -22,6 +22,7 @@ from fastapi.responses import Response, StreamingResponse
 
 from api.dependencies import get_llm_provider, get_output_dir
 from api.routes.download import SavedNotebook, save_notebook
+from api.routes.metrics import record_failure, record_success
 from api.settings import (
     IPYNB_MEDIA_TYPE,
     MAX_UPLOAD_BYTES,
@@ -32,8 +33,10 @@ from api.settings import (
 )
 from notebook_builder.converter import ConvertedNotebook, pdf_to_notebook
 from providers import LLMProvider, ProviderError
-from providers.base import Progress
+from providers.base import Progress, ProgressCallback
 from util.log import get_logger
+from util.pdf import count_pages
+from util.pricing import estimate_cost
 
 __all__ = [
     "convert_pdf_to_notebook",
@@ -57,6 +60,40 @@ PdfUpload = Annotated[
 # Running conversions. Keeping a reference stops them being garbage
 # collected; they finish (and save the notebook) even if the client leaves.
 _background_tasks: set[asyncio.Task[None]] = set()
+
+
+class _Capture:
+    """Progress callback that remembers token usage and what served the
+    request, and optionally forwards each update."""
+
+    def __init__(self, forward: ProgressCallback | None = None) -> None:
+        self.usage: dict[str, int] = {}
+        self.served: dict[str, Any] | None = None
+        self.forward = forward
+
+    def __call__(self, progress: Progress) -> None:
+        if progress.usage:
+            self.usage.update(progress.usage)
+        if progress.served:
+            self.served = progress.served
+        if self.forward is not None:
+            self.forward(progress)
+
+    def served_or_requested(self, provider: LLMProvider) -> dict[str, Any]:
+        """What served the request, or what was asked for if not reported."""
+        return self.served or {
+            "model": provider.model,
+            "speed": provider.requested_speed,
+            "model_fallback": False,
+            "speed_fallback": False,
+        }
+
+    def cost(self, provider: LLMProvider) -> dict[str, Any] | None:
+        """Estimated cost, priced at the model and speed that served it."""
+        served = self.served_or_requested(provider)
+        return estimate_cost(
+            served["model"], self.usage or None, speed=served["speed"]
+        )
 
 
 def _log_failure(detail: str, exc: Exception, provider: LLMProvider) -> None:
@@ -157,16 +194,21 @@ async def convert_pdf_to_notebook(
     """
     content = await _read_pdf(file)
     started = time.monotonic()
+    capture = _Capture()
     try:
         # The SDK calls block, so run them off the event loop.
         result = await run_in_threadpool(
-            partial(pdf_to_notebook, source_name=file.filename),
+            partial(
+                pdf_to_notebook, source_name=file.filename, on_progress=capture
+            ),
             content,
             provider,
         )
     except (ProviderError, ValueError) as exc:
+        record_failure()
         raise _conversion_error(exc, provider) from exc
 
+    record_success(capture.usage or None, capture.cost(provider))
     notebook_json, saved = _finish(result, output_dir, started)
     headers = {
         "Content-Disposition": f'attachment; filename="{result.filename}"'
@@ -189,12 +231,16 @@ def _result_event(
     saved: SavedNotebook | None,
     *,
     provider: LLMProvider,
-    usage: dict[str, int],
+    capture: _Capture,
+    cost: dict[str, Any] | None,
+    session: dict[str, Any],
     upload_bytes: int,
+    pages: int | None,
     started: float,
 ) -> dict[str, Any]:
     """The ``result`` event: the notebook plus the dashboard's metrics."""
     kinds = [cell.cell_type for cell in result.notebook.cells]
+    usage = capture.usage
     return {
         "filename": result.filename,
         "title": result.title,
@@ -206,9 +252,19 @@ def _result_event(
         "elapsed": round(time.monotonic() - started, 1),
         "provider": provider.name,
         "model": provider.model,
+        "requested_speed": provider.requested_speed,
+        "served": capture.served_or_requested(provider),
         "usage": usage or None,
+        "max_output_tokens": provider.max_output_tokens,
+        "cost": cost,
         "upload_bytes": upload_bytes,
+        "pages": pages,
         "notebook_bytes": len(notebook_json.encode()),
+        "code_lines": result.code_lines,
+        "pip_packages": list(result.pip_packages),
+        "dropped_packages": list(result.dropped_packages),
+        "requires_gpu": result.requires_gpu,
+        "session": session,
         "notebook": notebook_json,
     }
 
@@ -231,9 +287,16 @@ async def convert_pdf_to_notebook_stream(
     - ``result``: ``filename``, ``title``, ``saved_path``, ``download_url``
       (``/api/notebooks/{id}``, or null if saving failed), ``cells``,
       ``markdown_cells``, ``code_cells``, ``elapsed``, ``provider``,
-      ``model``, ``usage`` (``input_tokens``, ``output_tokens``,
-      ``total_tokens``, or null), ``upload_bytes``, ``notebook_bytes`` and
-      ``notebook`` (the ``.ipynb`` JSON as a string). Ends the stream.
+      ``model`` and ``requested_speed`` (what was asked for), ``served``
+      (``model``, ``speed``, ``model_fallback``, ``speed_fallback``: what
+      actually answered), ``usage`` (``input_tokens``, ``output_tokens``,
+      ``total_tokens``, or null), ``max_output_tokens`` (the output budget,
+      or null), ``cost`` (estimated USD from ``[pricing]`` in config.ini,
+      or null), ``upload_bytes``, ``pages`` (or null), ``notebook_bytes``,
+      ``code_lines``, ``pip_packages``, ``dropped_packages``,
+      ``requires_gpu``, ``session`` (totals since the server started, as
+      ``/api/metrics/session``) and ``notebook`` (the ``.ipynb`` JSON as a
+      string). Ends the stream.
     - ``error``: ``status`` (HTTP code it would have had) and ``detail``.
       Ends the stream.
 
@@ -243,17 +306,17 @@ async def convert_pdf_to_notebook_stream(
     """
     content = await _read_pdf(file)
     started = time.monotonic()
+    pages = await run_in_threadpool(count_pages, content)
     loop = asyncio.get_running_loop()
     queue: asyncio.Queue[tuple[str, dict[str, Any]]] = asyncio.Queue()
-    usage: dict[str, int] = {}
 
-    def on_progress(progress: Progress) -> None:
-        if progress.usage:
-            usage.update(progress.usage)
+    def send_progress(progress: Progress) -> None:
         # Called from the worker thread; hand the update to the event loop.
         loop.call_soon_threadsafe(
             queue.put_nowait, ("progress", progress.to_dict())
         )
+
+    capture = _Capture(forward=send_progress)
 
     async def convert() -> None:
         try:
@@ -261,12 +324,13 @@ async def convert_pdf_to_notebook_stream(
                 partial(
                     pdf_to_notebook,
                     source_name=file.filename,
-                    on_progress=on_progress,
+                    on_progress=capture,
                 ),
                 content,
                 provider,
             )
         except (ProviderError, ValueError) as exc:
+            record_failure()
             error = _conversion_error(exc, provider)
             await queue.put(
                 (
@@ -275,14 +339,19 @@ async def convert_pdf_to_notebook_stream(
                 )
             )
             return
+        cost = capture.cost(provider)
+        session = record_success(capture.usage or None, cost)
         notebook_json, saved = _finish(result, output_dir, started)
         event = _result_event(
             result,
             notebook_json,
             saved,
             provider=provider,
-            usage=usage,
+            capture=capture,
+            cost=cost,
+            session=session,
             upload_bytes=len(content),
+            pages=pages,
             started=started,
         )
         await queue.put(("result", event))

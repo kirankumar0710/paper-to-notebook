@@ -4,5 +4,6 @@
 - ``config``: panel 1 (Configuration), plus ``/health``.
 - ``convert``: panels 2-4 (Upload, LLM output, Metrics), which all read the
   same ``/convert/stream`` events.
+- ``metrics``: panel 4's totals since the server started.
 - ``download``: panel 5 (Download).
 """

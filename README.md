@@ -50,6 +50,10 @@ You need Python 3 and an API key for Anthropic or Google Gemini.
    `requirements.txt` into it. Later runs reuse it. There is no separate
    install step.
 
+   `run.py` does not reinstall into an existing `venv/`, so after pulling
+   changes that add dependencies, run
+   `venv/bin/pip install -r requirements.txt`.
+
 If a required variable is missing, `run.py` and the server log a warning
 at startup naming the variable to export, the dashboard's Configuration
 panel shows it in red, and `/convert` returns **503** (before any paid API
@@ -73,8 +77,18 @@ The page is a dashboard with five panels:
 2. **Upload paper**: pick or drop a PDF and start the conversion.
 3. **LLM output**: live stages, an activity log and the model's
    reasoning summary.
-4. **Metrics**: input/output/total tokens, time taken, upload size,
-   notebook size, cell counts and characters written.
+4. **Metrics**:
+   - tokens and an **estimated cost** (from `[pricing]` in `config.ini`;
+     fast mode is priced at `fast_multiplier`). Add a line for any model
+     you use that isn't listed, such as your Gemini model.
+   - how much of the output budget (`max_tokens`) was used
+   - time per stage (waiting, thinking, writing, building) and output speed
+   - which model and speed actually answered, with a warning if a
+     fallback model answered or fast mode fell back to standard speed
+   - the paper's page count and tokens per page, plus the notebook's
+     size, cells, lines of code, extra packages (and any unsafe ones
+     dropped) and whether it needs a GPU
+   - totals since the server started (`GET /api/metrics/session`)
 5. **Download**: the new notebook, plus every notebook generated since the
    server started.
 
