@@ -1,21 +1,21 @@
 """Estimate what a conversion cost from its token counts.
 
-Prices come from the ``[pricing]`` section of the config (see config.ini):
-``<model id> = <input>, <output>`` in USD per million tokens at standard
-speed, and ``fast_multiplier`` for fast mode.
+Prices come from the config (see config.toml): ``[pricing.models]`` maps
+each model id to ``{ input = <USD>, output = <USD> }`` per million tokens at
+standard speed, and ``[pricing] fast_multiplier`` applies to fast mode.
 """
 
 from __future__ import annotations
 
-import configparser
 from typing import Any
 
-from util.config import load_config
+from util.config import Config, load_config
 from util.log import get_logger
 
 __all__ = ["estimate_cost", "load_prices"]
 
 SECTION = "pricing"
+MODELS_KEY = "models"
 FAST_MULTIPLIER_KEY = "fast_multiplier"
 TOKENS_PER_PRICE_UNIT = 1_000_000
 
@@ -23,35 +23,44 @@ logger = get_logger(__name__)
 
 
 def load_prices(
-    config: configparser.ConfigParser | None = None,
+    config: Config | None = None,
 ) -> tuple[dict[str, tuple[float, float]], float]:
     """Return ``({model: (input, output)}, fast_multiplier)``.
 
-    Lines that cannot be parsed are skipped with a warning.
+    Entries that cannot be parsed are skipped with a warning.
     """
     if config is None:
         config = load_config()
-    if not config.has_section(SECTION):
-        return {}, 1.0
-    section = config[SECTION]
-    try:
-        multiplier = float(section.get(FAST_MULTIPLIER_KEY, "1"))
-    except ValueError:
+    section = config.get(SECTION, {})
+    multiplier = _number(section.get(FAST_MULTIPLIER_KEY, 1))
+    if multiplier is None:
         logger.warning("Ignoring invalid [pricing] fast_multiplier")
         multiplier = 1.0
+    models = section.get(MODELS_KEY, {})
+    if not isinstance(models, dict):
+        logger.warning("Ignoring [pricing] models: it must be a table")
+        models = {}
     prices: dict[str, tuple[float, float]] = {}
-    for model, value in section.items():
-        if model == FAST_MULTIPLIER_KEY:
-            continue
-        try:
-            input_price, output_price = (
-                float(part) for part in value.split(",")
+    for model, value in models.items():
+        rates = value if isinstance(value, dict) else {}
+        input_price = _number(rates.get("input"))
+        output_price = _number(rates.get("output"))
+        if input_price is None or output_price is None:
+            logger.warning(
+                "Ignoring invalid [pricing.models] entry for %s; use "
+                "{ input = <USD>, output = <USD> }",
+                model,
             )
-        except ValueError:
-            logger.warning("Ignoring invalid [pricing] line for %s", model)
             continue
-        prices[model] = (input_price, output_price)
+        prices[model.lower()] = (input_price, output_price)
     return prices, multiplier
+
+
+def _number(value: Any) -> float | None:
+    """A price or multiplier as a float, or None if it isn't a number."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return None
+    return float(value)
 
 
 def estimate_cost(
@@ -59,7 +68,7 @@ def estimate_cost(
     usage: dict[str, int] | None,
     *,
     speed: str | None = None,
-    config: configparser.ConfigParser | None = None,
+    config: Config | None = None,
 ) -> dict[str, Any] | None:
     """Estimate the cost of one request in USD.
 

@@ -49,7 +49,7 @@ class ProviderSettings:
     """Resolved settings for one provider.
 
     Attributes:
-        name: Provider name, as used for ``PROVIDER`` and the INI section.
+        name: Provider name, as used for ``PROVIDER`` and the config table.
         model: Model ID to call.
         base_url: API root, including the version segment (e.g. ``/v1``).
         api_key_env: Environment variables that may hold the key, in the
@@ -57,7 +57,7 @@ class ProviderSettings:
         api_key: The key found in the first set variable, if any.
         api_key_source: The variable the key was read from.
         options: Provider-specific tuning (e.g. ``effort``, ``speed``,
-            ``max_tokens`` for Anthropic), from the INI section or the
+            ``max_tokens`` for Anthropic), from the config table or the
             ``PROVIDER_<OPTION>`` environment variables.
     """
 

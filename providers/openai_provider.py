@@ -38,7 +38,7 @@ class OpenAIProvider(LLMProvider):
     """Generate structured output with an OpenAI model.
 
     Tuning comes from ``settings.options`` (``effort`` and ``max_tokens``
-    under ``[openai]`` in ``config.ini``, or ``PROVIDER_EFFORT`` /
+    under ``[openai]`` in ``config.toml``, or ``PROVIDER_EFFORT`` /
     ``PROVIDER_MAX_TOKENS``). Neither is sent unless set, so models without
     reasoning still work.
 

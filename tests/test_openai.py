@@ -187,8 +187,8 @@ class TestFactory:
         assert get_provider().model == "gpt-5.5"
 
     def test_model_is_required_if_config_has_none(self, tmp_path, monkeypatch):
-        override = tmp_path / "o.ini"
-        override.write_text("[openai]\nmodel =\n")
+        override = tmp_path / "o.toml"
+        override.write_text('[openai]\nmodel = ""\n')
         monkeypatch.setenv("PAPER_TO_NOTEBOOK_CONFIG", str(override))
         with pytest.raises(ValueError, match="PROVIDER_MODEL"):
             get_provider()
@@ -206,8 +206,8 @@ class TestFactory:
     ):
         from api.routes.config import describe_configuration
 
-        override = tmp_path / "o.ini"
-        override.write_text("[openai]\nmodel =\n")
+        override = tmp_path / "o.toml"
+        override.write_text('[openai]\nmodel = ""\n')
         monkeypatch.setenv("PAPER_TO_NOTEBOOK_CONFIG", str(override))
         monkeypatch.delenv("OPENAI_API_KEY")
         info = describe_configuration()

@@ -1,10 +1,9 @@
-# Vendor defaults, one section per provider (the section name is the
-# value PROVIDER is set to).
+# Vendor defaults, one table per provider (the table name is the value
+# PROVIDER is set to).
 #
 #   base_url     API root, without a trailing slash
-#   model        default model id; leave empty to force an explicit choice
-#   api_key_env  environment variables holding the key, comma-separated,
-#                checked in order
+#   model        default model id; set to "" to force an explicit choice
+#   api_key_env  environment variables holding the key, checked in order
 #
 # Required environment variables (there are no defaults; the server warns
 # at startup and /convert returns 503 until they are set):
@@ -17,41 +16,41 @@
 # API keys are never stored in this file.
 #
 # To change any of these without editing this file, point
-# PAPER_TO_NOTEBOOK_CONFIG at your own .ini file: its values override the
+# PAPER_TO_NOTEBOOK_CONFIG at your own .toml file: its values override the
 # ones here, key by key. Environment variables (PROVIDER_MODEL,
 # PROVIDER_BASE_URL) and keyword overrides passed to get_provider() still
 # take precedence over both.
 
 [anthropic]
-base_url = https://api.anthropic.com/v1
-model = claude-opus-5-5
-api_key_env = ANTHROPIC_API_KEY
+base_url = "https://api.anthropic.com/v1"
+model = "claude-opus-5-5"
+api_key_env = ["ANTHROPIC_API_KEY"]
 # Tuning (override with PROVIDER_EFFORT, PROVIDER_SPEED, PROVIDER_MAX_TOKENS):
 #   effort      low | medium | high | xhigh | max. Higher effort thinks
 #               longer: slower, and thinking uses more of max_tokens.
 #   speed       standard | fast. Fast mode writes up to ~2.5x faster at
 #               twice the per-token price; falls back to standard if busy.
 #   max_tokens  output budget shared by thinking and the notebook (max 128000).
-effort = medium
-speed = fast
+effort = "medium"
+speed = "fast"
 max_tokens = 128000
 
 [gemini]
-base_url = https://generativelanguage.googleapis.com/v1beta
-model = gemini-3.8-flash
-api_key_env = GEMINI_API_KEY
+base_url = "https://generativelanguage.googleapis.com/v1beta"
+model = "gemini-3.8-flash"
+api_key_env = ["GEMINI_API_KEY"]
 
 [openai]
-base_url = https://api.openai.com/v1
+base_url = "https://api.openai.com/v1"
 # Default model; override here or with PROVIDER_MODEL. It must accept PDF
 # input.
-model = gpt-5.5
-api_key_env = OPENAI_API_KEY
+model = "gpt-5.5"
+api_key_env = ["OPENAI_API_KEY"]
 # Tuning (override with PROVIDER_EFFORT, PROVIDER_MAX_TOKENS); not sent
 # unless set, so models without reasoning work too:
 #   effort      none | minimal | low | medium | high | xhigh | max
 #   max_tokens  output budget shared by reasoning and the notebook.
-# effort = medium
+# effort = "medium"
 # max_tokens = 64000
 
 # Application settings.
@@ -63,20 +62,25 @@ api_key_env = OPENAI_API_KEY
 #                Relative paths are resolved from the project root;
 #                ~ and $VARIABLES in the value are expanded.
 [app]
-output_dir = NOTEBOOK_OUTPUT_DIR
+output_dir = "NOTEBOOK_OUTPUT_DIR"
 
-# Prices for the dashboard's cost estimate, in USD per million tokens at
-# standard speed:  <model id> = <input price>, <output price>
-# Fast mode is billed at fast_multiplier times these. A model that is not
-# listed shows no cost. Prices change: check the provider's pricing page.
+# Prices for the dashboard's cost estimate.
+#
+#   fast_multiplier  fast mode is billed at this times the prices below.
+#
+# [pricing.models] lists USD per million tokens at standard speed. A model
+# that is not listed shows no cost. Prices change: check the provider's
+# pricing page. Quote model ids that contain a dot, e.g. "gemini-3.8-flash".
 # The estimate uses the model that actually answered (a fallback model can
 # differ from the one requested) and ignores any declined attempt before it.
 [pricing]
 fast_multiplier = 2
-claude-opus-5-5 = 4.00, 20.00
-claude-opus-5 = 5.00, 25.00
-claude-opus-4-8 = 5.00, 25.00
-claude-sonnet-5-5 = 2.00, 10.00
+
+[pricing.models]
+claude-opus-5-5 = { input = 4.00, output = 20.00 }
+claude-opus-5 = { input = 5.00, output = 25.00 }
+claude-opus-4-8 = { input = 5.00, output = 25.00 }
+claude-sonnet-5-5 = { input = 2.00, output = 10.00 }
 # Fill in from Google's / OpenAI's pricing pages to see those costs:
-# gemini-3.8-flash = <input>, <output>
-# <openai model id> = <input>, <output>
+# "gemini-3.8-flash" = { input = 0.00, output = 0.00 }
+# "gpt-5.5" = { input = 0.00, output = 0.00 }

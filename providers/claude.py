@@ -129,7 +129,7 @@ class ClaudeProvider(LLMProvider):
     """Generate structured output with Claude.
 
     Tuning comes from the keyword arguments, else from ``settings.options``
-    (``effort``, ``speed`` and ``max_tokens`` in ``config.ini`` or the
+    (``effort``, ``speed`` and ``max_tokens`` in ``config.toml`` or the
     ``PROVIDER_EFFORT`` / ``PROVIDER_SPEED`` / ``PROVIDER_MAX_TOKENS``
     environment variables), else from the defaults.
 

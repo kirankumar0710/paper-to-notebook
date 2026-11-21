@@ -1,8 +1,8 @@
-"""Read provider defaults from INI files and API keys from the environment.
+"""Read provider defaults from TOML files and API keys from the environment.
 
-``config.ini`` in the project root ships the vendor defaults. Setting
-``PAPER_TO_NOTEBOOK_CONFIG`` to another ``.ini`` file layers it on top: its
-values override the defaults key by key.
+``config.toml`` in the project root ships the vendor defaults. Setting
+``PAPER_TO_NOTEBOOK_CONFIG`` to another ``.toml`` file layers it on top: its
+values override the defaults key by key (nested tables are merged too).
 
 API keys are never read from a file, only from the environment variables
 named by each section's ``api_key_env``.
@@ -10,15 +10,17 @@ named by each section's ``api_key_env``.
 
 from __future__ import annotations
 
-import configparser
 import os
 import re
+import tomllib
 from pathlib import Path
+from typing import Any
 
 from util.log import get_logger
 
 __all__ = [
     "CONFIG_ENV_VAR",
+    "Config",
     "ConfigError",
     "DEFAULT_CONFIG_PATH",
     "OUTPUT_DIR_ENV_VAR",
@@ -34,10 +36,13 @@ __all__ = [
 
 CONFIG_ENV_VAR = "PAPER_TO_NOTEBOOK_CONFIG"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config.ini"
+DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config.toml"
 
 OUTPUT_DIR_ENV_VAR = "NOTEBOOK_OUTPUT_DIR"
 _ENV_VAR_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+# The merged config: {table name: {key: value}}.
+Config = dict[str, dict[str, Any]]
 
 logger = get_logger(__name__)
 
@@ -50,9 +55,7 @@ class ConfigError(ValueError):
     """
 
 
-def load_config(
-    path: str | Path | None = None,
-) -> configparser.ConfigParser:
+def load_config(path: str | Path | None = None) -> Config:
     """Load the vendor defaults, then any override file on top.
 
     Args:
@@ -63,6 +66,7 @@ def load_config(
 
     Raises:
         FileNotFoundError: If an override file is given but does not exist.
+        ConfigError: If a file is not valid TOML, or is an old ``.ini``.
     """
     files = [DEFAULT_CONFIG_PATH]
     override = path or os.environ.get(CONFIG_ENV_VAR)
@@ -72,19 +76,58 @@ def load_config(
             raise FileNotFoundError(f"Config file not found: {override_path}")
         files.append(override_path)
 
-    config = configparser.ConfigParser()
-    loaded = config.read(files, encoding="utf-8")
+    config: Config = {}
+    for file in files:
+        _merge(config, _read_toml(file))
     logger.info(
-        "Loaded config: %s (sections: %s)",
-        ", ".join(loaded) or "<none>",
-        ", ".join(config.sections()) or "<none>",
+        "Loaded config: %s (tables: %s)",
+        ", ".join(str(file) for file in files),
+        ", ".join(config) or "<none>",
     )
     return config
 
 
-def parse_env_var_list(value: str) -> tuple[str, ...]:
-    """Split a comma-separated ``api_key_env`` value into variable names."""
-    return tuple(name.strip() for name in value.split(",") if name.strip())
+def _read_toml(path: Path) -> Config:
+    """Parse one config file; every top-level value must be a table."""
+    if path.suffix.lower() == ".ini":
+        raise ConfigError(
+            f"{path} is an INI file; the config is now TOML. Rename it to "
+            '.toml and quote string values, e.g. model = "gpt-5.5".'
+        )
+    if not path.is_file():
+        logger.warning("Config file not found: %s", path)
+        return {}
+    try:
+        with path.open("rb") as handle:
+            data = tomllib.load(handle)
+    except tomllib.TOMLDecodeError as exc:
+        raise ConfigError(f"Invalid TOML in {path}: {exc}") from exc
+    for name, value in data.items():
+        if not isinstance(value, dict):
+            raise ConfigError(
+                f"{path}: {name!r} must be a [table], not a top-level value."
+            )
+    return data
+
+
+def _merge(base: dict[str, Any], override: dict[str, Any]) -> None:
+    """Overlay ``override`` on ``base`` in place, merging nested tables."""
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(base.get(key), dict):
+            _merge(base[key], value)
+        else:
+            base[key] = value
+
+
+def parse_env_var_list(value: str | list[str] | None) -> tuple[str, ...]:
+    """Return the variable names in ``api_key_env``.
+
+    Accepts a list (``["A", "B"]``) or a comma-separated string (``"A, B"``).
+    """
+    if not value:
+        return ()
+    names = value.split(",") if isinstance(value, str) else value
+    return tuple(str(name).strip() for name in names if str(name).strip())
 
 
 def locate_api_key(env_vars: tuple[str, ...]) -> tuple[str, str] | None:
@@ -108,7 +151,7 @@ def default_output_dir() -> Path:
 
 
 def locate_output_dir(
-    config: configparser.ConfigParser | None = None,
+    config: Config | None = None,
 ) -> tuple[Path, str]:
     """Return the output folder and where it came from.
 
@@ -131,7 +174,7 @@ def locate_output_dir(
     if config is None:
         config = load_config()
     env_var = (
-        config.get("app", "output_dir", fallback="").strip()
+        str(config.get("app", {}).get("output_dir") or "").strip()
         or OUTPUT_DIR_ENV_VAR
     )
     if not _ENV_VAR_NAME.match(env_var):
@@ -156,7 +199,7 @@ def locate_output_dir(
 
 
 def resolve_output_dir(
-    config: configparser.ConfigParser | None = None,
+    config: Config | None = None,
 ) -> Path:
     """Return the folder where generated notebooks are saved.
 

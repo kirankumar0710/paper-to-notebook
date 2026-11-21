@@ -359,8 +359,8 @@ class TestRequiredConfiguration:
     @pytest.fixture
     def bad_output_config(self, tmp_path, monkeypatch):
         """Point [app] output_dir at a path instead of a variable name."""
-        path = tmp_path / "bad.ini"
-        path.write_text("[app]\noutput_dir = ~/notebooks\n")
+        path = tmp_path / "bad.toml"
+        path.write_text('[app]\noutput_dir = "~/notebooks"\n')
         monkeypatch.setenv("PAPER_TO_NOTEBOOK_CONFIG", str(path))
 
     def test_unset_output_dir_defaults_to_downloads(

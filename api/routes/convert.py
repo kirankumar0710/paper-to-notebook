@@ -291,7 +291,7 @@ async def convert_pdf_to_notebook_stream(
       (``model``, ``speed``, ``model_fallback``, ``speed_fallback``: what
       actually answered), ``usage`` (``input_tokens``, ``output_tokens``,
       ``total_tokens``, or null), ``max_output_tokens`` (the output budget,
-      or null), ``cost`` (estimated USD from ``[pricing]`` in config.ini,
+      or null), ``cost`` (estimated USD from ``[pricing]`` in config.toml,
       or null), ``upload_bytes``, ``pages`` (or null), ``notebook_bytes``,
       ``code_lines``, ``pip_packages``, ``dropped_packages``,
       ``requires_gpu``, ``session`` (totals since the server started, as

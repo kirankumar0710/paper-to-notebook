@@ -3,7 +3,7 @@
 Each setting is resolved from the first source that has it:
 
 =========  =====================  =====================  =================
-Setting    get_provider() kwarg   Environment variable   INI files
+Setting    get_provider() kwarg   Environment variable   TOML files
 =========  =====================  =====================  =================
 provider   ``name``               ``PROVIDER``           —  (required)
 model      ``model``              ``PROVIDER_MODEL``     ``model``
@@ -11,17 +11,18 @@ base URL   ``base_url``           ``PROVIDER_BASE_URL``  ``base_url``
 API key    —                      listed in ``api_key_env``  never (required)
 =========  =====================  =====================  =================
 
-INI files are ``config.ini`` overlaid with ``$PAPER_TO_NOTEBOOK_CONFIG``.
+TOML files are ``config.toml`` overlaid with ``$PAPER_TO_NOTEBOOK_CONFIG``.
 """
 
 from __future__ import annotations
 
-import configparser
 import os
 from collections.abc import Callable
+from typing import Any
 
 from providers.base import LLMProvider, ProviderSettings
 from util.config import (
+    Config,
     ConfigError,
     load_config,
     locate_api_key,
@@ -53,8 +54,9 @@ _ALIASES = {
     "chatgpt": "openai",
 }
 
-# Tuning options each provider accepts. Each is read from the provider's INI
-# section and can be overridden with PROVIDER_<OPTION>, e.g. PROVIDER_EFFORT.
+# Tuning options each provider accepts. Each is read from the provider's
+# config table and can be overridden with PROVIDER_<OPTION>, e.g.
+# PROVIDER_EFFORT.
 PROVIDER_OPTIONS: dict[str, tuple[str, ...]] = {
     "anthropic": ("effort", "speed", "max_tokens"),
     "gemini": (),
@@ -89,11 +91,16 @@ _BUILDERS: dict[str, Callable[[ProviderSettings], LLMProvider]] = {
 }
 
 
-def _first_set(*candidates: tuple[str | None, str]) -> tuple[str, str]:
-    """Return ``(value, source)`` for the first non-empty candidate."""
+def _first_set(*candidates: tuple[Any, str]) -> tuple[str, str]:
+    """Return ``(value, source)`` for the first non-empty candidate.
+
+    Config values may be numbers (``max_tokens = 128000``); they are
+    returned as text, like environment variables.
+    """
     for value, source in candidates:
-        if value and value.strip():
-            return value.strip(), source
+        text = "" if value is None else str(value).strip()
+        if text:
+            return text, source
     return "", "not set"
 
 
@@ -130,7 +137,7 @@ def resolve_settings(
     *,
     model: str | None = None,
     base_url: str | None = None,
-    config: configparser.ConfigParser | None = None,
+    config: Config | None = None,
     require_key: bool = True,
     require_model: bool = True,
 ) -> ProviderSettings:
@@ -151,9 +158,7 @@ def resolve_settings(
     provider_name = resolve_provider_name(name)
     if config is None:
         config = load_config()
-    section = (
-        config[provider_name] if config.has_section(provider_name) else {}
-    )
+    section = config.get(provider_name, {})
 
     resolved_model, model_source = _first_set(
         (model, "argument"),
@@ -183,7 +188,7 @@ def resolve_settings(
             options[option] = value
             logger.info("Option %s: %s (from %s)", option, value, source)
 
-    api_key_env = parse_env_var_list(section.get("api_key_env", ""))
+    api_key_env = parse_env_var_list(section.get("api_key_env"))
     found = locate_api_key(api_key_env)
     settings = ProviderSettings(
         name=provider_name,
@@ -214,15 +219,15 @@ def get_provider(
     *,
     model: str | None = None,
     base_url: str | None = None,
-    config: configparser.ConfigParser | None = None,
+    config: Config | None = None,
 ) -> LLMProvider:
     """Build the LLM provider selected by ``PROVIDER`` (or ``name``).
 
     Args:
         name: ``"anthropic"``, ``"gemini"`` or ``"openai"``; overrides
             ``PROVIDER``.
-        model: Overrides ``PROVIDER_MODEL`` and the INI ``model``.
-        base_url: Overrides ``PROVIDER_BASE_URL`` and the INI ``base_url``.
+        model: Overrides ``PROVIDER_MODEL`` and the config ``model``.
+        base_url: Overrides ``PROVIDER_BASE_URL`` and the config ``base_url``.
         config: Parsed config. Defaults to :func:`util.config.load_config`.
 
     Returns:

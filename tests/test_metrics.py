@@ -49,14 +49,25 @@ class TestPricing:
         assert estimate_cost("claude-opus-5-5", None) is None
 
     def test_invalid_lines_are_skipped(self, tmp_path):
-        path = tmp_path / "p.ini"
+        path = tmp_path / "p.toml"
         path.write_text(
-            "[pricing]\nfast_multiplier = x\ngood = 1, 2\nbad = 1\n"
+            '[pricing]\nfast_multiplier = "x"\n'
+            "[pricing.models]\n"
+            "Good = { input = 1, output = 2.5 }\n"
+            "bad = 1\n"
+            'worse = { input = "1", output = 2 }\n'
         )
         prices, multiplier = load_prices(load_config(path))
-        assert prices["good"] == (1.0, 2.0)
-        assert "bad" not in prices
+        assert prices["good"] == (1.0, 2.5)
+        assert "bad" not in prices and "worse" not in prices
         assert multiplier == 1.0
+
+    def test_models_must_be_a_table(self, tmp_path):
+        path = tmp_path / "p.toml"
+        path.write_text('[pricing]\nmodels = "none"\n')
+        prices, multiplier = load_prices(load_config(path))
+        assert prices == {}
+        assert multiplier == 2.0
 
 
 class TestPageCount:

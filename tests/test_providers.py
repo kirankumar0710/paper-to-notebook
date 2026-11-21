@@ -53,40 +53,71 @@ def clean_env(monkeypatch):
 
 @pytest.fixture
 def override_file(tmp_path):
-    path = tmp_path / "override.ini"
-    path.write_text("[gemini]\nmodel = gemini-override\n")
+    path = tmp_path / "override.toml"
+    path.write_text('[gemini]\nmodel = "gemini-override"\n')
     return path
 
 
 class TestConfigFile:
     def test_vendor_defaults(self):
         config = load_config()
-        assert config.get("anthropic", "model") == "claude-opus-5-5"
-        assert config.get("gemini", "base_url").endswith("/v1beta")
+        assert config["anthropic"]["model"] == "claude-opus-5-5"
+        assert config["anthropic"]["max_tokens"] == 128000
+        assert config["gemini"]["base_url"].endswith("/v1beta")
 
     def test_no_api_keys_in_vendor_file(self):
         config = load_config()
-        for section in config.sections():
-            assert "api_key" not in config[section]
+        for table in config.values():
+            assert "api_key" not in table
 
     def test_override_file_merges_key_by_key(self, override_file):
         config = load_config(override_file)
-        assert config.get("gemini", "model") == "gemini-override"
+        assert config["gemini"]["model"] == "gemini-override"
         # Untouched keys keep the vendor default.
-        assert config.get("gemini", "api_key_env") == "GEMINI_API_KEY"
+        assert config["gemini"]["api_key_env"] == ["GEMINI_API_KEY"]
 
     def test_override_file_from_env(self, override_file, monkeypatch):
         monkeypatch.setenv("PAPER_TO_NOTEBOOK_CONFIG", str(override_file))
-        assert load_config().get("gemini", "model") == "gemini-override"
+        assert load_config()["gemini"]["model"] == "gemini-override"
 
     def test_missing_override_file(self, tmp_path):
         with pytest.raises(FileNotFoundError):
-            load_config(tmp_path / "missing.ini")
+            load_config(tmp_path / "missing.toml")
+
+    def test_nested_tables_merge(self, tmp_path):
+        path = tmp_path / "prices.toml"
+        path.write_text(
+            '[pricing.models]\n"gpt-5.5" = { input = 1, output = 2 }\n'
+        )
+        models = load_config(path)["pricing"]["models"]
+        assert models["gpt-5.5"] == {"input": 1, "output": 2}
+        # Vendor prices are kept alongside the new one.
+        assert "claude-opus-5-5" in models
+
+    def test_old_ini_file_is_rejected(self, tmp_path):
+        path = tmp_path / "old.ini"
+        path.write_text("[gemini]\nmodel = x\n")
+        with pytest.raises(ConfigError, match="TOML"):
+            load_config(path)
+
+    def test_invalid_toml(self, tmp_path):
+        path = tmp_path / "bad.toml"
+        path.write_text("[gemini]\nmodel = unquoted\n")
+        with pytest.raises(ConfigError, match="Invalid TOML"):
+            load_config(path)
+
+    def test_top_level_value_is_rejected(self, tmp_path):
+        path = tmp_path / "flat.toml"
+        path.write_text('model = "x"\n')
+        with pytest.raises(ConfigError, match="table"):
+            load_config(path)
 
 
 class TestApiKeyEnv:
     def test_parse_list(self):
         assert parse_env_var_list(" A, B ,,C ") == ("A", "B", "C")
+        assert parse_env_var_list(["A", " B ", ""]) == ("A", "B")
+        assert parse_env_var_list(None) == ()
 
     def test_first_set_variable_wins(self, monkeypatch):
         monkeypatch.delenv("TEST_KEY_A", raising=False)
@@ -182,8 +213,8 @@ class TestResolveSettings:
         assert settings.model == "kwarg-model"
 
     def test_empty_model_requires_explicit_choice(self, tmp_path):
-        path = tmp_path / "o.ini"
-        path.write_text("[anthropic]\nmodel =\n")
+        path = tmp_path / "o.toml"
+        path.write_text('[anthropic]\nmodel = ""\n')
         with pytest.raises(ValueError, match="PROVIDER_MODEL"):
             resolve_settings("anthropic", config=load_config(path))
 
@@ -436,13 +467,13 @@ class TestOutputDir:
         monkeypatch.delenv("NOTEBOOK_OUTPUT_DIR", raising=False)
 
     def _config(self, tmp_path, value):
-        path = tmp_path / "o.ini"
-        path.write_text(f"[app]\noutput_dir = {value}\n")
+        path = tmp_path / "o.toml"
+        path.write_text(f'[app]\noutput_dir = "{value}"\n')
         return load_config(path)
 
     def test_vendor_config_names_the_env_var(self):
         config = load_config()
-        assert config.get("app", "output_dir") == "NOTEBOOK_OUTPUT_DIR"
+        assert config["app"]["output_dir"] == "NOTEBOOK_OUTPUT_DIR"
 
     def test_defaults_to_downloads(self, tmp_path, monkeypatch):
         monkeypatch.setenv("HOME", str(tmp_path))

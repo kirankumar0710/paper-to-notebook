@@ -92,7 +92,7 @@ export function initMetrics() {
     } else {
       set("m-cost", "—");
       $("m-cost-d").textContent = result.usage
-        ? `no price for ${result.served.model} in config.ini`
+        ? `no price for ${result.served.model} in config.toml`
         : "no token counts";
     }
   }

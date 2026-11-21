@@ -31,7 +31,7 @@ Generated code should be reviewed before you rely on its results.
 
 ## Setup
 
-You need Python 3 and an API key for Anthropic, Google Gemini or OpenAI.
+You need Python 3.11+ and an API key for Anthropic, Google Gemini or OpenAI.
 
 1. **Set the environment variables.** Two are **required**, with no
    defaults; the output folder is optional:
@@ -79,7 +79,7 @@ The page is a dashboard with five panels:
 3. **LLM output**: live stages, an activity log and the model's
    reasoning summary.
 4. **Metrics**:
-   - tokens and an **estimated cost** (from `[pricing]` in `config.ini`;
+   - tokens and an **estimated cost** (from `[pricing.models]` in `config.toml`;
      fast mode is priced at `fast_multiplier`). Add a line for any model
      you use that isn't listed, such as your Gemini or OpenAI model.
    - how much of the output budget (`max_tokens`) was used
@@ -112,13 +112,13 @@ show live status.
 
 ## LLM providers (Anthropic, Gemini, OpenAI)
 
-[`config.ini`](config.ini) holds the vendor defaults, one section per provider:
-`base_url`, `model`, and `api_key_env` (the environment variables to read the
-key from, checked in order). **API keys are never stored in a file.**
+[`config.toml`](config.toml) holds the vendor defaults, one table per provider:
+`base_url`, `model`, and `api_key_env` (a list of environment variables to read
+the key from, checked in order). **API keys are never stored in a file.**
 
 Each setting comes from the first source that has it:
 
-| Setting  | `get_provider()` kwarg | Environment variable | INI file |
+| Setting  | `get_provider()` kwarg | Environment variable | `config.toml` |
 |----------|------------------------|----------------------|----------|
 | Provider | `name`                 | `PROVIDER` (required) | — |
 | Model    | `model`                | `PROVIDER_MODEL`     | `model`  |
@@ -127,10 +127,10 @@ Each setting comes from the first source that has it:
 
 Anthropic tuning, set in `[anthropic]` and overridable per run:
 
-| Option | `config.ini` | Environment override | Notes |
-|--------|--------------|----------------------|-------|
-| Effort | `effort = medium` | `PROVIDER_EFFORT` | `low`…`max`; higher thinks longer (slower, more tokens) |
-| Speed | `speed = fast` | `PROVIDER_SPEED` | `fast` ≈ up to 2.5× faster output at 2× price; falls back to `standard` if busy |
+| Option | `config.toml` | Environment override | Notes |
+|--------|---------------|----------------------|-------|
+| Effort | `effort = "medium"` | `PROVIDER_EFFORT` | `low`…`max`; higher thinks longer (slower, more tokens) |
+| Speed | `speed = "fast"` | `PROVIDER_SPEED` | `fast` ≈ up to 2.5× faster output at 2× price; falls back to `standard` if busy |
 | Max tokens | `max_tokens = 128000` | `PROVIDER_MAX_TOKENS` | shared by thinking and the notebook |
 
 OpenAI (`PROVIDER=openai`, or `gpt` / `chatgpt`) defaults to `gpt-5.5`;
@@ -140,18 +140,35 @@ uses the Responses API with strict structured output, and sends
 `store: false` so OpenAI does not keep the paper or the notebook. Optional
 tuning, not sent unless set:
 
-| Option | `config.ini` | Environment override | Notes |
-|--------|--------------|----------------------|-------|
-| Effort | `effort = medium` | `PROVIDER_EFFORT` | reasoning effort: `none`, `minimal`, `low`…`max`; leave unset for models without reasoning |
+| Option | `config.toml` | Environment override | Notes |
+|--------|---------------|----------------------|-------|
+| Effort | `effort = "medium"` | `PROVIDER_EFFORT` | reasoning effort: `none`, `minimal`, `low`…`max`; leave unset for models without reasoning |
 | Max tokens | `max_tokens = 64000` | `PROVIDER_MAX_TOKENS` | shared by reasoning and the notebook |
 
 OpenAI replies are not streamed, so the dashboard shows "waiting" until the
 whole notebook arrives (no live thinking or writing progress). Add the
-model's price under `[pricing]` to see its cost.
+model's price under `[pricing.models]` to see its cost:
 
-To change defaults without editing `config.ini`, point
-`PAPER_TO_NOTEBOOK_CONFIG` at your own `.ini` file; its values override
-`config.ini` key by key.
+```toml
+[pricing.models]
+"gpt-5.5" = { input = <USD>, output = <USD> }   # per million tokens
+```
+
+Quote model ids that contain a dot.
+
+To change defaults without editing `config.toml`, point
+`PAPER_TO_NOTEBOOK_CONFIG` at your own `.toml` file; its values override
+`config.toml` key by key, and nested tables such as `[pricing.models]` are
+merged, so an override only needs the keys it changes:
+
+```toml
+[openai]
+model = "gpt-5.5"
+effort = "low"
+```
+
+The config used to be `config.ini`. An old `.ini` override is rejected
+with a message: rename it to `.toml` and quote the string values.
 
 The providers can also be used directly:
 
@@ -168,11 +185,11 @@ print(result.filename, len(result.notebook.cells))
 ## Output folder
 
 Every notebook is also saved on the server. `output_dir` under `[app]` in
-`config.ini` names the environment variable that holds the folder:
+`config.toml` names the environment variable that holds the folder:
 
-```ini
+```toml
 [app]
-output_dir = NOTEBOOK_OUTPUT_DIR
+output_dir = "NOTEBOOK_OUTPUT_DIR"
 ```
 
 The variable is optional: if it is not set, notebooks are saved to
@@ -229,13 +246,13 @@ The tests use fake LLM clients, so they make no API calls and need no keys.
 │   ├── openai_provider.py  # OpenAI SDK (Responses API)
 │   └── factory.py          # get_provider() from $PROVIDER
 ├── util/
-│   ├── config.py           # config.ini loader, API key lookup
+│   ├── config.py           # config.toml loader, API key lookup
 │   ├── files.py            # Save files without overwriting
 │   ├── log.py              # Logging setup, secret masking
 │   ├── text_utils.py       # Safe filenames
 │   └── url_utils.py        # Split API version off base URLs
 ├── tests/
-├── config.ini              # Provider defaults (no keys)
+├── config.toml             # Provider defaults and prices (no keys)
 ├── output/                 # Saved notebooks (git-ignored)
 ├── pyproject.toml
 ├── requirements.txt
