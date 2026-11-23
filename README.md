@@ -48,7 +48,7 @@ override file named by `PAPER_TO_NOTEBOOK_CONFIG`, and environment
 variables, in increasing order of priority. `PROVIDER` and API keys
 come only from the environment.
 
-Architecture details: [docs/architecture.html](docs/architecture.html)
+<mark><b>Architecture details:</b></mark> [docs/architecture.html](docs/architecture.html)
 
 ## How it works
 
