@@ -1,121 +1,129 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400" role="img" aria-label="Overview: the browser dashboard talks to the API routes, which run the conversion package, which asks an LLM provider to call the vendor's LLM API. All three server parts use util, which reads config.toml and writes notebooks to the output folder.">
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1210" viewBox="0 0 1000 1210" role="img" aria-label="Overview: the browser dashboard talks to the API routes, which run the conversion package, which asks an LLM provider to call the vendor's LLM API. All three server parts use util, which reads config.toml and writes notebooks to the output folder.">
   <title>Paper to Notebook · overview</title>
   <style>
     .bg { fill: #ffffff; }
-    .title { font: 600 18px "IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #1b2230; }
-    .zone { fill: #eceff4; stroke: #b9c1ce; stroke-width: 1; }
-    .zone.ext { fill: none; stroke-dasharray: 5 4; }
-    .zlabel { font: 600 11px "IBM Plex Mono", Menlo, Consolas, monospace; letter-spacing: 0.06em; fill: #5c6678; }
-    .box { fill: #ffffff; stroke: #b9c1ce; stroke-width: 1.2; }
-    .box.acc { stroke: #2456c9; stroke-width: 1.6; }
-    .h { font: 600 14px "IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #1b2230; }
-    .f { font: 400 11px "IBM Plex Mono", Menlo, Consolas, monospace; fill: #2456c9; }
-    .s { font: 400 11px "IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #5c6678; }
-    .lbl { font: 400 11px "IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #5c6678; }
+    .title { font: 600 23px "IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #1b2230; }
+    .zone { fill: #eceff4; stroke: #b9c1ce; stroke-width: 1.2; }
+    .zone.ext { fill: none; stroke-dasharray: 6 5; }
+    .zlabel { font: 600 16px "IBM Plex Mono", Menlo, Consolas, monospace; letter-spacing: 0.06em; fill: #5c6678; }
+    .box { fill: #ffffff; stroke: #b9c1ce; stroke-width: 1.5; }
+    .box.acc { stroke: #2456c9; stroke-width: 2; }
+    .h { font: 600 19px "IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #1b2230; }
+    .f { font: 400 16px "IBM Plex Mono", Menlo, Consolas, monospace; fill: #2456c9; }
+    .s { font: 400 16px "IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #5c6678; }
+    .lbl { font: 400 16px "IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #5c6678; }
     .lbl.acc { fill: #2456c9; }
-    .wire { fill: none; stroke: #b9c1ce; stroke-width: 1.4; }
-    .wire.acc { stroke: #2456c9; stroke-width: 1.8; }
-    .wire.dash { stroke-dasharray: 5 4; }
-    .head { fill: #b9c1ce; }
+    .wire { fill: none; stroke: #9aa5b6; stroke-width: 1.8; }
+    .wire.acc { stroke: #2456c9; stroke-width: 2.2; }
+    .wire.dash { stroke-dasharray: 6 5; }
+    .head { fill: #9aa5b6; }
     .head.acc { fill: #2456c9; }
   </style>
   <defs>
-    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0 0 L10 5 L0 10 z"/></marker>
-    <marker id="aacc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head acc" d="M0 0 L10 5 L0 10 z"/></marker>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="head" d="M0 0 L10 5 L0 10 z"/></marker>
+    <marker id="aacc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="head acc" d="M0 0 L10 5 L0 10 z"/></marker>
   </defs>
 
-  <rect class="bg" x="0" y="0" width="1280" height="400"/>
-  <text class="title" x="20" y="32">Paper to Notebook · overview</text>
+  <rect class="bg" x="0" y="0" width="1000" height="1210"/>
+  <text class="title" x="24" y="42">Paper to Notebook · overview</text>
 
-  <!-- zones -->
-  <text class="zlabel" x="20" y="66">BROWSER</text>
-  <text class="zlabel" x="280" y="66">FASTAPI SERVER</text>
-  <rect class="zone" x="280" y="74" width="730" height="296" rx="10"/>
-  <text class="zlabel" x="1090" y="66">OUTSIDE THE APP</text>
-  <rect class="zone ext" x="1090" y="74" width="180" height="296" rx="10"/>
+  <!-- browser -->
+  <text class="zlabel" x="50" y="88">BROWSER</text>
+  <rect class="box" x="50" y="100" width="360" height="126" rx="10"/>
+  <text class="h" x="72" y="134">Dashboard</text>
+  <text class="f" x="72" y="160">api/static/</text>
+  <text class="s" x="72" y="188">5 panels: config, upload,</text>
+  <text class="s" x="72" y="210">output, metrics, download</text>
 
-  <!-- main row -->
-  <rect class="box" x="20" y="100" width="170" height="104" rx="8"/>
-  <text class="h" x="34" y="126">Dashboard</text>
-  <text class="f" x="34" y="145">api/static/</text>
-  <text class="s" x="34" y="166">5 panels: config, upload,</text>
-  <text class="s" x="34" y="182">output, metrics, download</text>
+  <!-- server zone -->
+  <rect class="zone" x="24" y="290" width="952" height="628" rx="12"/>
+  <text class="zlabel" x="370" y="316">FASTAPI SERVER</text>
 
-  <rect class="box" x="290" y="100" width="170" height="104" rx="8"/>
-  <text class="h" x="304" y="126">API routes</text>
-  <text class="f" x="304" y="145">api/routes/</text>
-  <text class="s" x="304" y="166">check input, stream</text>
-  <text class="s" x="304" y="182">progress, serve files</text>
+  <rect class="box" x="50" y="330" width="360" height="126" rx="10"/>
+  <text class="h" x="72" y="364">API routes</text>
+  <text class="f" x="72" y="390">api/routes/</text>
+  <text class="s" x="72" y="418">check input, stream progress,</text>
+  <text class="s" x="72" y="440">serve files</text>
 
-  <rect class="box" x="560" y="100" width="170" height="104" rx="8"/>
-  <text class="h" x="574" y="126">Conversion</text>
-  <text class="f" x="574" y="145">notebook_builder/</text>
-  <text class="s" x="574" y="166">prompt + schema in,</text>
-  <text class="s" x="574" y="182">Colab .ipynb out</text>
+  <rect class="box" x="50" y="546" width="360" height="126" rx="10"/>
+  <text class="h" x="72" y="580">Conversion</text>
+  <text class="f" x="72" y="606">notebook_builder/</text>
+  <text class="s" x="72" y="634">prompt + schema in,</text>
+  <text class="s" x="72" y="656">Colab .ipynb out</text>
 
-  <rect class="box" x="830" y="100" width="170" height="104" rx="8"/>
-  <text class="h" x="844" y="126">LLM providers</text>
-  <text class="f" x="844" y="145">providers/</text>
-  <text class="s" x="844" y="166">Anthropic · Gemini · OpenAI</text>
-  <text class="s" x="844" y="182">keys, retries, progress</text>
+  <rect class="box" x="50" y="762" width="360" height="126" rx="10"/>
+  <text class="h" x="72" y="796">LLM providers</text>
+  <text class="f" x="72" y="822">providers/</text>
+  <text class="s" x="72" y="850">Anthropic · Gemini · OpenAI</text>
+  <text class="s" x="72" y="872">keys, retries, progress</text>
 
-  <rect class="box acc" x="1100" y="100" width="155" height="104" rx="8"/>
-  <text class="h" x="1114" y="126">LLM API</text>
-  <text class="s" x="1114" y="148">vendor HTTPS API</text>
-  <text class="s" x="1114" y="166">the paid step,</text>
-  <text class="s" x="1114" y="182">often minutes</text>
+  <rect class="box" x="530" y="330" width="420" height="558" rx="10"/>
+  <text class="h" x="554" y="372">Shared helpers</text>
+  <text class="f" x="554" y="398">util/</text>
+  <text class="s" x="554" y="482">config.toml loader</text>
+  <text class="s" x="554" y="562">cost estimate</text>
+  <text class="s" x="554" y="642">PDF page count</text>
+  <text class="s" x="554" y="722">safe file saves (never overwrite)</text>
+  <text class="s" x="554" y="802">logging with masked API keys</text>
 
-  <!-- main row arrows: request on top, response below -->
-  <line class="wire" x1="190" y1="136" x2="288" y2="136" marker-end="url(#a)"/>
-  <text class="lbl" x="240" y="129" text-anchor="middle">PDF upload</text>
-  <line class="wire dash" x1="290" y1="172" x2="192" y2="172" marker-end="url(#a)"/>
-  <text class="lbl" x="240" y="165" text-anchor="middle">live progress</text>
+  <!-- outside zone -->
+  <rect class="zone ext" x="24" y="978" width="952" height="172" rx="12"/>
+  <text class="zlabel" x="430" y="1004">OUTSIDE THE APP</text>
 
-  <line class="wire" x1="460" y1="136" x2="558" y2="136" marker-end="url(#a)"/>
-  <text class="lbl" x="510" y="129" text-anchor="middle">PDF</text>
-  <line class="wire dash" x1="560" y1="172" x2="462" y2="172" marker-end="url(#a)"/>
-  <text class="lbl" x="510" y="165" text-anchor="middle">notebook</text>
+  <rect class="box acc" x="50" y="1018" width="360" height="112" rx="10"/>
+  <text class="h" x="72" y="1052">LLM API</text>
+  <text class="s" x="72" y="1080">vendor HTTPS API</text>
+  <text class="s" x="72" y="1104">the paid step, often minutes</text>
 
-  <line class="wire" x1="730" y1="136" x2="828" y2="136" marker-end="url(#a)"/>
-  <text class="lbl" x="780" y="129" text-anchor="middle">prompt + schema</text>
-  <line class="wire dash" x1="830" y1="172" x2="732" y2="172" marker-end="url(#a)"/>
-  <text class="lbl" x="780" y="165" text-anchor="middle">JSON spec</text>
+  <rect class="box" x="530" y="1018" width="200" height="112" rx="10"/>
+  <text class="h" x="552" y="1052">config.toml</text>
+  <text class="s" x="552" y="1080">+ environment</text>
+  <text class="s" x="552" y="1104">variables</text>
 
-  <line class="wire acc" x1="1000" y1="136" x2="1098" y2="136" marker-end="url(#aacc)"/>
-  <text class="lbl acc" x="1050" y="129" text-anchor="middle">PDF + prompt</text>
-  <line class="wire acc dash" x1="1100" y1="172" x2="1002" y2="172" marker-end="url(#aacc)"/>
-  <text class="lbl acc" x="1050" y="165" text-anchor="middle">JSON reply</text>
+  <rect class="box" x="750" y="1018" width="200" height="112" rx="10"/>
+  <text class="h" x="772" y="1052">Output folder</text>
+  <text class="s" x="772" y="1080">~/Downloads</text>
+  <text class="s" x="772" y="1104">by default</text>
 
-  <!-- shared helpers -->
-  <rect class="box" x="290" y="250" width="710" height="96" rx="8"/>
-  <text class="h" x="645" y="282" text-anchor="middle">Shared helpers</text>
-  <text class="f" x="645" y="301" text-anchor="middle">util/</text>
-  <text class="s" x="645" y="324" text-anchor="middle">config.toml loader · cost estimate · PDF page count · safe file saves · logging with masked keys</text>
+  <!-- chain: request down on the left, response up on the right -->
+  <line class="wire" x1="150" y1="226" x2="150" y2="328" marker-end="url(#a)"/>
+  <text class="lbl" x="162" y="272">PDF upload</text>
+  <line class="wire dash" x1="310" y1="330" x2="310" y2="228" marker-end="url(#a)"/>
+  <text class="lbl" x="322" y="272">live progress</text>
 
-  <line class="wire" x1="375" y1="204" x2="375" y2="248" marker-end="url(#a)"/>
-  <line class="wire" x1="645" y1="204" x2="645" y2="248" marker-end="url(#a)"/>
-  <line class="wire" x1="915" y1="204" x2="915" y2="248" marker-end="url(#a)"/>
-  <text class="lbl" x="383" y="231">uses</text>
-  <text class="lbl" x="653" y="231">uses</text>
-  <text class="lbl" x="923" y="231">uses</text>
+  <line class="wire" x1="150" y1="456" x2="150" y2="544" marker-end="url(#a)"/>
+  <text class="lbl" x="162" y="506">PDF</text>
+  <line class="wire dash" x1="310" y1="546" x2="310" y2="458" marker-end="url(#a)"/>
+  <text class="lbl" x="322" y="506">notebook</text>
 
-  <!-- outside: config and output -->
-  <rect class="box" x="1100" y="240" width="155" height="46" rx="8"/>
-  <text class="h" x="1114" y="260">config.toml</text>
-  <text class="s" x="1114" y="277">+ environment variables</text>
-  <line class="wire" x1="1100" y1="268" x2="1002" y2="268" marker-end="url(#a)"/>
-  <text class="lbl" x="1050" y="261" text-anchor="middle">settings</text>
+  <line class="wire" x1="150" y1="672" x2="150" y2="760" marker-end="url(#a)"/>
+  <text class="lbl" x="162" y="722">prompt + schema</text>
+  <line class="wire dash" x1="310" y1="762" x2="310" y2="674" marker-end="url(#a)"/>
+  <text class="lbl" x="322" y="722">JSON spec</text>
 
-  <rect class="box" x="1100" y="306" width="155" height="46" rx="8"/>
-  <text class="h" x="1114" y="326">Output folder</text>
-  <text class="s" x="1114" y="343">~/Downloads by default</text>
-  <line class="wire" x1="1000" y1="330" x2="1098" y2="330" marker-end="url(#a)"/>
-  <text class="lbl" x="1050" y="323" text-anchor="middle">.ipynb files</text>
+  <line class="wire acc" x1="150" y1="888" x2="150" y2="1016" marker-end="url(#aacc)"/>
+  <text class="lbl acc" x="162" y="954">PDF + prompt</text>
+  <line class="wire acc dash" x1="310" y1="1018" x2="310" y2="890" marker-end="url(#aacc)"/>
+  <text class="lbl acc" x="322" y="954">JSON reply</text>
+
+  <!-- uses util -->
+  <line class="wire" x1="410" y1="393" x2="528" y2="393" marker-end="url(#a)"/>
+  <text class="lbl" x="469" y="384" text-anchor="middle">uses</text>
+  <line class="wire" x1="410" y1="609" x2="528" y2="609" marker-end="url(#a)"/>
+  <text class="lbl" x="469" y="600" text-anchor="middle">uses</text>
+  <line class="wire" x1="410" y1="825" x2="528" y2="825" marker-end="url(#a)"/>
+  <text class="lbl" x="469" y="816" text-anchor="middle">uses</text>
+
+  <!-- util and the outside files -->
+  <line class="wire" x1="630" y1="1018" x2="630" y2="890" marker-end="url(#a)"/>
+  <text class="lbl" x="642" y="954">settings</text>
+  <line class="wire" x1="850" y1="888" x2="850" y2="1016" marker-end="url(#a)"/>
+  <text class="lbl" x="862" y="954">.ipynb files</text>
 
   <!-- legend -->
-  <g transform="translate(20, 388)">
-    <line class="wire" x1="0" y1="-4" x2="24" y2="-4"/><text class="s" x="32" y="0">request or call</text>
-    <line class="wire dash" x1="150" y1="-4" x2="174" y2="-4"/><text class="s" x="182" y="0">response</text>
-    <line class="wire acc" x1="270" y1="-4" x2="294" y2="-4"/><text class="s" x="302" y="0">the only call that leaves the server for the LLM</text>
+  <g transform="translate(24, 1186)">
+    <line class="wire" x1="0" y1="-5" x2="30" y2="-5"/><text class="s" x="40" y="0">request or call</text>
+    <line class="wire dash" x1="190" y1="-5" x2="220" y2="-5"/><text class="s" x="230" y="0">response</text>
+    <line class="wire acc" x1="340" y1="-5" x2="370" y2="-5"/><text class="s" x="380" y="0">the only call that leaves the server for the LLM</text>
   </g>
 </svg>
