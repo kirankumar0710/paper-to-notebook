@@ -10,15 +10,23 @@ description: UI design guidelines for the Paper-to-Notebook dashboard (api/stati
 - `api/static/base.css` defines the palette, spacing and shape as CSS
   tokens (`--bg`, `--card`, `--border`, `--accent`, `--accent-hover`,
   `--text`, `--muted`, `--subtle`, `--ok`, `--warn`, `--error`, `--radius`,
-  `--radius-sm`, `--pad`, `--gap`, `--font`, `--mono`), the dashboard grid,
-  the shared panel frame (`section.panel`), the panel header (`.panel-head`,
+  `--radius-sm`, `--pad`, `--gap`, `--font`, `--mono`, `--surface`, the
+  sequence scale `--seq-1`…`--seq-4`, and the section colours
+  `--tint-<section>` / `--line-<section>`), the dashboard grid, which
+  section colour each panel uses (`--panel-bg` / `--panel-line`), the
+  shared panel frame (`section.panel`), the panel header (`.panel-head`,
   `.panel-head h2`, `.panel-actions`) and shared controls (`button.link`).
+- Inside a panel, content surfaces (tiles, logs, inputs, drop zone) use
+  `var(--surface)` with a `1px solid var(--panel-line)` border, and
+  dividers use `var(--panel-line)`, so they follow the panel's colour.
 - Each panel is `api/static/panels/<name>/<name>.html|.css|.js`. Panel CSS
   must use the tokens from `base.css`; do not add literal colours, radii or
-  per-panel header styles.
+  per-panel header styles. A panel's section colour is set only in
+  `base.css`, never in its own CSS.
 - A new panel: add its folder, a `<link>` and an
   `<!-- include: panels/<name>/<name>.html -->` line in `index.html`, a grid
-  area in `base.css` (desktop, tablet and mobile), and wire it in `app.js`.
+  area in `base.css` (desktop, tablet and mobile), a section colour (see
+  section 4), and wire it in `app.js`.
 - Layout (desktop): row 1 Configuration | Upload paper / specify link |
   Download; row 2 LLM output (two columns) | MCP activity log; row 3
   Metrics (full width). Tablet: two columns. Mobile: one column.
@@ -37,7 +45,11 @@ alignment.
 ## 2. Global Design Principles
 
 - Use a pure white page background (`#FFFFFF`).
-- Use white backgrounds for all functional panels.
+- Give each functional panel its own **soft section colour**: a pale tint
+  for the background and a matching light border, following common
+  dashboard practice (see "Section colours" in section 4). Colours must be
+  soft pastels, never bright or saturated.
+- Content inside a panel (cards, logs, inputs) sits on white.
 - Every major functional section must be enclosed in an individual rounded
   rectangular panel.
 - Maintain consistent panel borders, corner radius, padding, and spacing.
@@ -52,13 +64,14 @@ Every functional section must follow the same panel structure.
 
 ### Panel appearance
 
-- Background: `#FFFFFF`
-- Border: `1px solid #E2E8F0`
+- Background: the panel's section tint (`--panel-bg`).
+- Border: `1px solid` the panel's section border (`--panel-line`).
 - Border radius: `10px` to `12px` (implemented: `--radius: 12px`)
 - Internal padding: `12px` to `16px` (implemented: `--pad: 16px`)
 - Consistent spacing between panels (implemented: `--gap: 16px`).
 - Avoid heavy shadows.
-- All panels must have consistent styling.
+- All panels must have consistent styling: only the section colour
+  differs between panels.
 
 ### Panel heading
 
@@ -85,8 +98,9 @@ Every functional section must follow the same panel structure.
 | Purpose | Color | Token |
 |---|---|---|
 | Page background | #FFFFFF | `--bg` |
-| Panel background | #FFFFFF | `--card` |
-| Panel border | #E2E8F0 | `--border` |
+| Content inside panels | #FFFFFF | `--surface` |
+| Default panel background | #FFFFFF | `--card` |
+| Default border | #E2E8F0 | `--border` |
 | Primary accent | #2563EB | `--accent` |
 | Primary hover | #1D4ED8 | `--accent-hover` |
 | Main text | #1E293B | `--text` |
@@ -96,13 +110,43 @@ Every functional section must follow the same panel structure.
 | Error | #DC2626 | `--error` |
 | Muted background | #F1F5F9 | `--subtle` |
 
+### Section colours
+
+Each panel has a soft tint (Tailwind 50 shade) and a matching border
+(100–200 shade). The hue follows what the section is for, as is common in
+dashboards:
+
+| Section | Hue | Why | Background | Border | Tokens |
+|---|---|---|---|---|---|
+| Configuration | Slate | settings, neutral | #F8FAFC | #E2E8F0 | `--tint-config` / `--line-config` |
+| Upload paper / specify link | Blue | input, the primary action | #EFF6FF | #BFDBFE | `--tint-upload` / `--line-upload` |
+| Download | Green | finished results | #F0FDF4 | #BBF7D0 | `--tint-download` / `--line-download` |
+| LLM output | Violet | the AI model | #F5F3FF | #DDD6FE | `--tint-output` / `--line-output` |
+| MCP activity log | Teal | external tools, integrations | #F0FDFA | #CCFBF1 | `--tint-mcp` / `--line-mcp` |
+| Metrics | Amber | measurements, analytics | #FFFBEB | #FEF3C7 | `--tint-metrics` / `--line-metrics` |
+
+Rules:
+- Keep tints soft: a 50 shade for the background and a 100–200 shade for
+  the border. Never use saturated colours for panel backgrounds.
+- A section colour identifies the section only. It never means status:
+  green, amber and red text, dots and chips still mean success, warning
+  and error.
+- Headings, text, actions and buttons look the same in every panel; only
+  the tint and border change.
+- A new panel picks an unused soft hue that fits its purpose, defined as a
+  new `--tint-*` / `--line-*` pair in `base.css`.
+
+### Interaction and status colours
+
 Use blue as the primary interactive color.
 
-Use green, amber, and red only to communicate status.
+Use green, amber, and red only to communicate status (text, dots, chips),
+not for panel backgrounds other than the section tints above.
 
 Do not introduce additional colors without a functional reason. (The one
 exception in use: the Metrics stage bar is a grey-to-blue scale in stage
-order, with amber only for "retrying".)
+order, tokens `--seq-1`…`--seq-4` plus `--accent` and `--accent-hover`,
+with amber only for "retrying". Use the scale only for ordered stages.)
 
 ## 5. Application Panel Structure
 
@@ -181,7 +225,8 @@ Apply the common panel design to the following sections.
 The implementation is complete when:
 
 1. Every major functional section is enclosed in a rounded panel.
-2. All panels use a consistent white background and subtle border.
+2. Each panel uses its own soft section colour (tint and matching border)
+   from the table in section 4; content inside sits on white.
 3. Every heading is bold and positioned at the top-left.
 4. Panel actions, when present, are positioned at the top-right.
 5. Colors are consistent with the defined palette.
@@ -192,4 +237,5 @@ The implementation is complete when:
 
 **Primary objective:** Consistency across the entire application. Every
 panel should look like part of the same product, not an independently
-designed component.
+designed component; the soft section colour is the only thing that tells
+panels apart.

@@ -12,7 +12,7 @@
 .tiles { display: grid; gap: 10px;
   grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
 .tile { padding: 10px 12px; border-radius: var(--radius-sm);
-  background: var(--subtle);
+  background: var(--surface); border: 1px solid var(--panel-line);
   min-width: 0; }
 .tile.wide { grid-column: span 2; }
 @media (max-width: 420px) { .tile.wide { grid-column: auto; } }
@@ -41,11 +41,11 @@
 .stage-legend i { width: 8px; height: 8px; border-radius: 2px; }
 /* Stages in order, as a scale from grey to the primary blue; retrying
    is a warning, so it uses the warning colour. */
-.stage-upload { background: #cbd5e1; }
-.stage-fetching { background: #94a3b8; }
-.stage-waiting { background: #bfdbfe; }
+.stage-upload { background: var(--seq-1); }
+.stage-fetching { background: var(--seq-2); }
+.stage-waiting { background: var(--seq-3); }
 .stage-retrying { background: var(--warn); }
-.stage-thinking { background: #60a5fa; }
+.stage-thinking { background: var(--seq-4); }
 .stage-writing { background: var(--accent); }
 .stage-building { background: var(--accent-hover); }
 

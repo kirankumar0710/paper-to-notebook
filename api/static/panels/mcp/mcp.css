@@ -16,10 +16,11 @@
 .mcp-events {
   flex: 1 1 0; min-height: 16em; margin: 0; padding: 4px 0; list-style: none;
   overflow-y: auto; overscroll-behavior: contain;
-  border-radius: var(--radius-sm); background: var(--subtle);
+  border-radius: var(--radius-sm); background: var(--surface);
+  border: 1px solid var(--panel-line);
 }
 .mcp-events:empty { display: none; }
-.mcp-events li { padding: 7px 12px; border-top: 1px solid var(--border);
+.mcp-events li { padding: 7px 12px; border-top: 1px solid var(--panel-line);
   font-size: 0.82rem; display: grid; gap: 3px; }
 .mcp-events li:first-child { border-top: 0; }
 .mcp-events .row { display: flex; align-items: baseline; gap: 8px;

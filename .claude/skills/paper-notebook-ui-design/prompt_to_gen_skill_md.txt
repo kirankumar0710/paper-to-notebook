@@ -8,6 +8,22 @@ How SKILL.md was made:
 2. Then: "create it" -> saved as .claude/skills/paper-notebook-ui-design/
    SKILL.md, with the text below plus a "Where this lives in the code"
    section and the values used (12px radius, 16px padding, 13px titles).
+3. Section colours added later with this follow-up prompt (verbatim):
+
+   "the panels not white, it should colour which be used standard
+   practice.. .like for configuration xyz clolour, for download abc etc..
+   and colour should be soft and not picky.
+
+   can you modify the skill.md and prompt_to_gen_skill_md.txt
+   to add this.
+
+   The update the ui as well."
+
+   Result: each panel got a soft tint and matching border by purpose
+   (Configuration slate, Upload blue, Download green, LLM output violet,
+   MCP activity log teal, Metrics amber), with content inside on white.
+   This replaces "white backgrounds for all functional panels" in the
+   original prompt below; see "Section colours" in SKILL.md.
 
 ----------------------------------------------------------------------------
 Original prompt (pasted as-is):

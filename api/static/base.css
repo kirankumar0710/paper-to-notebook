@@ -1,10 +1,12 @@
 /* Theme, page layout and styles shared by every panel. Each panel's own
    styles are in panels/<name>/<name>.css and use only these tokens.
 
-   Design rules (all panels alike): white page and panels, 1px #E2E8F0
-   border, 12px radius, 16px padding, bold uppercase title at the top-left,
-   actions (Refresh, Clear) as small blue text at the top-right. Blue is the
-   only interactive colour; green, amber and red only show status. */
+   Design rules (all panels alike): white page; each panel has its own soft
+   section tint (background + matching border, see "Section colours"), 12px
+   radius, 16px padding, bold uppercase title at the top-left, actions
+   (Refresh, Clear) as small blue text at the top-right. Content inside a
+   panel sits on white (--surface). Blue is the only interactive colour;
+   green, amber and red only show status. */
 :root {
   /* Palette */
   --bg: #ffffff;           /* page */
@@ -15,10 +17,23 @@
   --accent-text: #ffffff;
   --text: #1e293b;         /* main text and panel titles */
   --muted: #64748b;        /* secondary text */
-  --subtle: #f1f5f9;       /* muted backgrounds: tiles, logs */
+  --subtle: #f1f5f9;       /* muted backgrounds */
+  --surface: #ffffff;      /* content inside a panel: tiles, logs, inputs */
   --ok: #16a34a;           /* success */
   --warn: #d97706;         /* warning */
   --error: #dc2626;        /* error */
+  /* Sequence scale (grey to the primary blue) for ordered stages, e.g. the
+     Metrics stage bar. Not for status or interaction. */
+  --seq-1: #cbd5e1; --seq-2: #94a3b8; --seq-3: #bfdbfe; --seq-4: #60a5fa;
+  /* Section colours: a soft tint per panel (Tailwind 50 shade) and its
+     border (100/200 shade). They identify the section; they never mean
+     status. */
+  --tint-config: #f8fafc;   --line-config: #e2e8f0;   /* slate: settings */
+  --tint-upload: #eff6ff;   --line-upload: #bfdbfe;   /* blue: input */
+  --tint-download: #f0fdf4; --line-download: #bbf7d0; /* green: results */
+  --tint-output: #f5f3ff;   --line-output: #ddd6fe;   /* violet: the model */
+  --tint-mcp: #f0fdfa;      --line-mcp: #ccfbf1;      /* teal: integrations */
+  --tint-metrics: #fffbeb;  --line-metrics: #fef3c7;  /* amber: measurements */
   /* Spacing and shape */
   --radius: 12px;          /* panels */
   --radius-sm: 8px;        /* controls, tiles, logs inside panels */
@@ -85,9 +100,18 @@ body > header nav a { color: var(--accent); font-size: 0.9rem;
 #mcp-panel { grid-area: mcp; }
 #metrics-panel { grid-area: metrics; }
 
+/* Section colours: each panel picks its tint; everything else is shared. */
+#config-panel { --panel-bg: var(--tint-config); --panel-line: var(--line-config); }
+#upload-panel { --panel-bg: var(--tint-upload); --panel-line: var(--line-upload); }
+#download-panel { --panel-bg: var(--tint-download); --panel-line: var(--line-download); }
+#output-panel { --panel-bg: var(--tint-output); --panel-line: var(--line-output); }
+#mcp-panel { --panel-bg: var(--tint-mcp); --panel-line: var(--line-mcp); }
+#metrics-panel { --panel-bg: var(--tint-metrics); --panel-line: var(--line-metrics); }
+
 /* Panel frame: the same for every panel */
 section.panel {
-  background: var(--card); border: 1px solid var(--border);
+  background: var(--panel-bg, var(--card));
+  border: 1px solid var(--panel-line, var(--border));
   border-radius: var(--radius); padding: var(--pad); min-width: 0;
 }
 /* Title at the top-left, actions at the top-right on the same line. The
