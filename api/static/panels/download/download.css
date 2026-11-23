@@ -1,12 +1,14 @@
 /* 5. Download */
 a.download {
-  display: block; padding: 10px; border-radius: 8px; text-align: center;
-  background: var(--ok); color: var(--card); font-weight: 600;
-  text-decoration: none; overflow-wrap: anywhere;
+  display: block; padding: 10px; border-radius: var(--radius-sm);
+  text-align: center; background: var(--accent); color: var(--accent-text);
+  font-weight: 600; text-decoration: none; overflow-wrap: anywhere;
 }
+a.download:hover { background: var(--accent-hover); }
 #saved-path { margin: 8px 0 0; font-size: 0.82rem; color: var(--muted);
   overflow-wrap: anywhere; }
-ul.files { list-style: none; margin: 0; padding: 0; }
+ul.files { list-style: none; margin: 0; padding: 0; max-height: 15em;
+  overflow-y: auto; overscroll-behavior: contain; }
 ul.files li { display: flex; align-items: center; gap: 10px;
   padding: 8px 0; border-top: 1px solid var(--border); font-size: 0.88rem; }
 ul.files li:first-child { border-top: 0; }
@@ -15,4 +17,5 @@ ul.files .name { display: block; overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap; }
 ul.files a { color: var(--accent); font-weight: 600; text-decoration: none;
   flex: none; }
+ul.files a:hover { color: var(--accent-hover); text-decoration: underline; }
 footer.note { margin: 14px 0 0; font-size: 0.8rem; color: var(--muted); }

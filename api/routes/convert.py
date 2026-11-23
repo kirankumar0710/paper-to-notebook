@@ -1,6 +1,11 @@
 """Panels 2-4 (Upload, LLM output, Metrics): ``POST /convert`` and
 ``POST /convert/stream``.
 
+A paper comes either as an uploaded PDF (``file``) or as an arXiv ID or
+link (``arxiv``). For arXiv, the paper is looked up through the arXiv MCP
+server and its PDF downloaded (:mod:`sources.arxiv`), so the LLM reads a
+PDF either way.
+
 The dashboard uses the stream: its ``progress`` events drive the LLM output
 panel, and the final ``result`` event carries the metrics and the notebook.
 """
@@ -16,7 +21,15 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import nbformat
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+    status,
+)
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response, StreamingResponse
 
@@ -34,6 +47,7 @@ from api.settings import (
 from notebook_builder.converter import ConvertedNotebook, pdf_to_notebook
 from providers import LLMProvider, ProviderError
 from providers.base import Progress, ProgressCallback
+from sources.arxiv import ArxivError, fetch_arxiv_paper, parse_arxiv_ref
 from util.log import get_logger
 from util.pdf import count_pages
 from util.pricing import estimate_cost
@@ -47,13 +61,32 @@ __all__ = [
 logger = get_logger(__name__)
 router = APIRouter()
 
-# "format: binary" makes Swagger UI (/docs) show a file picker; the OpenAPI
-# 3.1 schema FastAPI emits otherwise renders as a text box.
+
+def _binary_file_schema(schema: dict[str, Any]) -> None:
+    """Describe the optional upload as a plain binary string.
+
+    Swagger UI (/docs) shows a file picker only for ``type: string,
+    format: binary``; the "file or null" schema FastAPI emits for an
+    optional upload renders as a text box.
+    """
+    schema.pop("anyOf", None)
+    schema.update(type="string", format="binary")
+
+
 PdfUpload = Annotated[
-    UploadFile,
+    UploadFile | None,
     File(
-        description="Research paper PDF",
-        json_schema_extra={"format": "binary"},
+        description="Research paper PDF. Send this or ``arxiv``.",
+        json_schema_extra=_binary_file_schema,
+    ),
+]
+ArxivRef = Annotated[
+    str | None,
+    Form(
+        description=(
+            "arXiv ID or link, e.g. 1706.03762 or "
+            "https://arxiv.org/abs/1706.03762. Send this or ``file``."
+        ),
     ),
 ]
 
@@ -132,6 +165,42 @@ async def _read_pdf(file: UploadFile) -> bytes:
     return content
 
 
+def _check_source(file: UploadFile | None, arxiv: str | None) -> str | None:
+    """Require exactly one of ``file`` and ``arxiv``; return the arXiv ID.
+
+    Raises:
+        HTTPException: 400 if neither or both are given, or the arXiv
+            reference is not valid.
+    """
+    has_arxiv = bool(arxiv and arxiv.strip())
+    if file is not None and has_arxiv:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Send either a PDF file or an arXiv link, not both.",
+        )
+    if file is None and not has_arxiv:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Upload a PDF or give an arXiv ID or link.",
+        )
+    if not has_arxiv:
+        return None
+    try:
+        return parse_arxiv_ref(arxiv or "")
+    except ArxivError as exc:
+        raise _arxiv_http_error(exc) from exc
+
+
+def _arxiv_http_error(exc: ArxivError) -> HTTPException:
+    """The HTTP error for a failed arXiv lookup."""
+    logger.error("arXiv lookup failed (%d): %s", exc.status_code, exc)
+    return HTTPException(status_code=exc.status_code, detail=str(exc))
+
+
+def _upload_source(file: UploadFile) -> dict[str, Any]:
+    return {"type": "upload", "filename": file.filename}
+
+
 def _conversion_error(exc: Exception, provider: LLMProvider) -> HTTPException:
     """Map a failed conversion to the HTTP error returned to the client."""
     if isinstance(exc, ProviderError) and exc.retryable:
@@ -179,27 +248,42 @@ def _finish(
 
 @router.post("/convert")
 async def convert_pdf_to_notebook(
-    file: PdfUpload,
     provider: Annotated[LLMProvider, Depends(get_llm_provider)],
     output_dir: Annotated[Path, Depends(get_output_dir)],
+    file: PdfUpload = None,
+    arxiv: ArxivRef = None,
 ) -> Response:
-    """Upload a paper PDF and download a Google Colab notebook (``.ipynb``).
+    """Upload a paper PDF, or give an arXiv ID or link, and download a
+    Google Colab notebook (``.ipynb``).
 
-    The notebook is named after the uploaded file: ``my_paper.pdf`` is
-    returned as ``my_paper.ipynb``.
+    The notebook is named after the uploaded file (``my_paper.pdf`` is
+    returned as ``my_paper.ipynb``), or after the arXiv ID and title.
+    An arXiv paper is looked up through the arXiv MCP server and its PDF
+    downloaded from arxiv.org.
 
     The LLM reads the PDF directly, so layout, equations and figures are
     taken into account. Expect a conversion to take a minute or more; use
     ``/convert/stream`` to receive progress updates while it runs.
     """
-    content = await _read_pdf(file)
+    arxiv_id = _check_source(file, arxiv)
+    if arxiv_id is not None:
+        try:
+            paper = await fetch_arxiv_paper(
+                arxiv_id, max_bytes=MAX_UPLOAD_BYTES
+            )
+        except ArxivError as exc:
+            raise _arxiv_http_error(exc) from exc
+        content, source_name = paper.pdf, paper.source_name
+    else:
+        assert file is not None
+        content, source_name = await _read_pdf(file), file.filename
     started = time.monotonic()
     capture = _Capture()
     try:
         # The SDK calls block, so run them off the event loop.
         result = await run_in_threadpool(
             partial(
-                pdf_to_notebook, source_name=file.filename, on_progress=capture
+                pdf_to_notebook, source_name=source_name, on_progress=capture
             ),
             content,
             provider,
@@ -237,6 +321,7 @@ def _result_event(
     upload_bytes: int,
     pages: int | None,
     started: float,
+    source: dict[str, Any],
 ) -> dict[str, Any]:
     """The ``result`` event: the notebook plus the dashboard's metrics."""
     kinds = [cell.cell_type for cell in result.notebook.cells]
@@ -257,6 +342,7 @@ def _result_event(
         "usage": usage or None,
         "max_output_tokens": provider.max_output_tokens,
         "cost": cost,
+        "source": source,
         "upload_bytes": upload_bytes,
         "pages": pages,
         "notebook_bytes": len(notebook_json.encode()),
@@ -271,15 +357,18 @@ def _result_event(
 
 @router.post("/convert/stream")
 async def convert_pdf_to_notebook_stream(
-    file: PdfUpload,
     provider: Annotated[LLMProvider, Depends(get_llm_provider)],
     output_dir: Annotated[Path, Depends(get_output_dir)],
+    file: PdfUpload = None,
+    arxiv: ArxivRef = None,
 ) -> StreamingResponse:
     """Like ``/convert``, but streams progress as server-sent events.
 
     Events (``text/event-stream``), each with a JSON ``data`` payload:
 
-    - ``progress``: ``stage`` (``waiting``, ``thinking``, ``writing``,
+    - ``progress``: ``stage`` (``uploaded``, ``fetching`` while an arXiv
+      paper is looked up and downloaded, ``waiting``, ``thinking``,
+      ``writing``,
       ``retrying``, ``building``, ``done``), ``message``, ``elapsed``
       seconds, ``output_chars``, while Claude thinks a ``thinking``
       summary excerpt and ``thinking_delta`` (the new summary text since
@@ -294,19 +383,27 @@ async def convert_pdf_to_notebook_stream(
       or null), ``cost`` (estimated USD from ``[pricing]`` in config.toml,
       or null), ``upload_bytes``, ``pages`` (or null), ``notebook_bytes``,
       ``code_lines``, ``pip_packages``, ``dropped_packages``,
-      ``requires_gpu``, ``session`` (totals since the server started, as
+      ``requires_gpu``, ``source`` (``type`` ``upload`` with
+      ``filename``, or ``arxiv`` with ``paper_id``, ``title``,
+      ``authors``, ``published``, ``abs_url`` and ``pdf_url``),
+      ``session`` (totals since the server started, as
       ``/api/metrics/session``) and ``notebook`` (the ``.ipynb`` JSON as a
       string). Ends the stream.
     - ``error``: ``status`` (HTTP code it would have had) and ``detail``.
       Ends the stream.
 
-    Upload problems (400) and missing configuration (503) are returned as
-    normal HTTP errors before the stream starts. If the client disconnects,
-    the conversion still finishes and is saved to the output folder.
+    Upload problems and invalid arXiv references (400) and missing
+    configuration (503) are returned as normal HTTP errors before the
+    stream starts; a failed arXiv lookup is an ``error`` event. If the
+    client disconnects, the conversion still finishes and is saved to the
+    output folder.
     """
-    content = await _read_pdf(file)
+    arxiv_id = _check_source(file, arxiv)
+    upload: bytes | None = None
+    if arxiv_id is None:
+        assert file is not None
+        upload = await _read_pdf(file)
     started = time.monotonic()
-    pages = await run_in_threadpool(count_pages, content)
     loop = asyncio.get_running_loop()
     queue: asyncio.Queue[tuple[str, dict[str, Any]]] = asyncio.Queue()
 
@@ -318,12 +415,39 @@ async def convert_pdf_to_notebook_stream(
 
     capture = _Capture(forward=send_progress)
 
+    async def paper() -> tuple[bytes, str, dict[str, Any]]:
+        """The PDF, its name and its source: the upload, or from arXiv."""
+        if upload is not None:
+            assert file is not None
+            return upload, file.filename or "paper.pdf", _upload_source(file)
+        fetched = await fetch_arxiv_paper(
+            arxiv_id or "",
+            max_bytes=MAX_UPLOAD_BYTES,
+            notify=lambda message: queue.put_nowait(
+                ("progress", Progress("fetching", message).to_dict())
+            ),
+        )
+        return fetched.pdf, fetched.source_name, fetched.describe()
+
     async def convert() -> None:
+        try:
+            content, source_name, source = await paper()
+        except ArxivError as exc:
+            record_failure()
+            error = _arxiv_http_error(exc)
+            await queue.put(
+                (
+                    "error",
+                    {"status": error.status_code, "detail": error.detail},
+                )
+            )
+            return
+        pages = await run_in_threadpool(count_pages, content)
         try:
             result = await run_in_threadpool(
                 partial(
                     pdf_to_notebook,
-                    source_name=file.filename,
+                    source_name=source_name,
                     on_progress=capture,
                 ),
                 content,
@@ -353,6 +477,7 @@ async def convert_pdf_to_notebook_stream(
             upload_bytes=len(content),
             pages=pages,
             started=started,
+            source=source,
         )
         await queue.put(("result", event))
 
@@ -361,10 +486,11 @@ async def convert_pdf_to_notebook_stream(
     task.add_done_callback(_background_tasks.discard)
 
     async def events() -> AsyncIterator[str]:
-        yield _sse(
-            "progress",
-            Progress("uploaded", f"Received {file.filename}").to_dict(),
-        )
+        if file is not None:
+            yield _sse(
+                "progress",
+                Progress("uploaded", f"Received {file.filename}").to_dict(),
+            )
         while True:
             event, data = await queue.get()
             yield _sse(event, data)

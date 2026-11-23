@@ -146,7 +146,11 @@ def _convert(provider, **upload_kwargs):
     # conftest.py points NOTEBOOK_OUTPUT_DIR at a temp folder.
     output_dir = Path(os.environ["NOTEBOOK_OUTPUT_DIR"])
     return asyncio.run(
-        convert_pdf_to_notebook(_upload(**upload_kwargs), provider, output_dir)
+        convert_pdf_to_notebook(
+            provider=provider,
+            output_dir=output_dir,
+            file=_upload(**upload_kwargs),
+        )
     )
 
 
@@ -274,8 +278,10 @@ class TestHttp:
         script = client.get("/static/app.js").text
         assert 'fetch("/convert/stream"' in script
 
-    def test_missing_file_is_422(self, client):
-        assert client.post("/convert").status_code == 422
+    def test_missing_file_and_link_is_400(self, client):
+        response = client.post("/convert")
+        assert response.status_code == 400
+        assert "arXiv" in response.json()["detail"]
 
     def test_docs_show_file_picker(self):
         # Swagger UI renders a file input only for "format: binary".

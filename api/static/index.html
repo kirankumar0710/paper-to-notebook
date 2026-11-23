@@ -11,13 +11,14 @@
 <link rel="stylesheet" href="/static/panels/output/output.css">
 <link rel="stylesheet" href="/static/panels/metrics/metrics.css">
 <link rel="stylesheet" href="/static/panels/download/download.css">
+<link rel="stylesheet" href="/static/panels/mcp/mcp.css">
 </head>
 <body>
 <header>
   <div>
     <h1>Paper to Notebook</h1>
-    <p>Turn a research paper PDF into a Google Colab notebook that explains
-      and implements it.</p>
+    <p>Turn a research paper PDF or arXiv link into a Google Colab notebook
+      that explains and implements it.</p>
   </div>
   <nav><a href="/docs">API docs</a><a href="/health">Health</a></nav>
 </header>
@@ -27,9 +28,10 @@
 <main class="grid">
   <!-- include: panels/config/config.html -->
   <!-- include: panels/upload/upload.html -->
-  <!-- include: panels/metrics/metrics.html -->
-  <!-- include: panels/output/output.html -->
   <!-- include: panels/download/download.html -->
+  <!-- include: panels/output/output.html -->
+  <!-- include: panels/mcp/mcp.html -->
+  <!-- include: panels/metrics/metrics.html -->
 </main>
 
 <script type="module" src="/static/app.js"></script>

@@ -1,20 +1,23 @@
 // Wires the dashboard panels together and runs a conversion.
 //
 // Each panel (panels/<name>/<name>.js) owns its own part of the page; this
-// file only passes data between them. The Upload panel starts a conversion,
-// and the events from POST /convert/stream go to the LLM output, Metrics
-// and Download panels.
+// file only passes data between them. The Upload panel starts a conversion
+// from a PDF or an arXiv link, and the events from POST /convert/stream go
+// to the LLM output, Metrics and Download panels. The MCP activity log
+// polls on its own and only needs to know when a conversion is running.
 import { readEvents } from "./shared.js";
 import { initConfig } from "./panels/config/config.js";
 import { initUpload } from "./panels/upload/upload.js";
 import { initOutput } from "./panels/output/output.js";
 import { initMetrics } from "./panels/metrics/metrics.js";
 import { initDownload } from "./panels/download/download.js";
+import { initMcp } from "./panels/mcp/mcp.js";
 
 let config = null;
 const output = initOutput();
 const metrics = initMetrics();
 const download = initDownload();
+const mcp = initMcp();
 const upload = initUpload({
   onChoose: (file) => metrics.showFile(file),
   onSubmit: convert,
@@ -34,11 +37,22 @@ async function errorDetail(response) {
   return typeof detail === "string" ? detail : JSON.stringify(detail);
 }
 
-async function convert(file) {
+// source: {kind: "file", file} or {kind: "arxiv", ref} from the Upload
+// panel.
+async function convert(source) {
+  const isArxiv = source.kind === "arxiv";
+  // What the output and metrics panels show for the paper.
+  const paper = isArxiv
+    ? { kind: "arxiv", ref: source.ref, name: `arXiv ${source.ref}` }
+    : { kind: "file", name: source.file.name, size: source.file.size };
   upload.setBusy(true);
-  upload.setStatus("Converting… this usually takes a minute or more.");
-  output.start(file);
-  metrics.start(file, config);
+  upload.setStatus(isArxiv
+    ? "Fetching the paper from arXiv, then converting… this usually " +
+      "takes a minute or more."
+    : "Converting… this usually takes a minute or more.");
+  output.start(paper);
+  metrics.start(paper, config);
+  if (isArxiv) mcp.setActive(true);
 
   const startedAt = Date.now();
   const timer = setInterval(() => {
@@ -49,7 +63,8 @@ async function convert(file) {
 
   try {
     const body = new FormData();
-    body.append("file", file);
+    if (isArxiv) body.append("arxiv", source.ref);
+    else body.append("file", source.file);
     const response = await fetch("/convert/stream", { method: "POST", body });
     if (!response.ok) throw new Error(await errorDetail(response));
 
@@ -83,5 +98,6 @@ async function convert(file) {
   } finally {
     clearInterval(timer);
     upload.setBusy(false);
+    if (isArxiv) mcp.setActive(false);
   }
 }

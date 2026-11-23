@@ -1,0 +1,17 @@
+<!-- MCP activity log -->
+<section class="panel" id="mcp-panel" aria-labelledby="mcp-h">
+  <div class="panel-head">
+    <h2 id="mcp-h">MCP activity log</h2>
+    <div class="panel-actions">
+      <span class="live" id="mcp-live" title="Polling GET /api/mcp/events">
+        <i aria-hidden="true"></i><span id="mcp-live-text">Live</span></span>
+      <button class="link" id="mcp-clear" type="button">Clear</button>
+    </div>
+  </div>
+  <p class="mcp-server" id="mcp-server">arXiv MCP server · started over
+    stdio for each lookup</p>
+  <ol class="mcp-events" id="mcp-events" aria-live="polite"></ol>
+  <p class="empty" id="mcp-empty">No MCP activity yet. Paste an arXiv link in
+    panel 2 and click <b>Convert to notebook</b>: the server start, each
+    tool call with its arguments, and each result will show here.</p>
+</section>

@@ -5,7 +5,7 @@
 import { $, el, fmtBytes, fmtDuration, fmtInt } from "../../shared.js";
 
 const STAGE_LABELS = {
-  upload: "Upload", waiting: "Waiting", retrying: "Retrying",
+  upload: "Upload", fetching: "arXiv fetch", waiting: "Waiting", retrying: "Retrying",
   thinking: "Thinking", writing: "Writing", building: "Building",
 };
 // Budget use above this share shows as a warning: the next run may be
@@ -140,6 +140,10 @@ export function initMetrics() {
         "tokens/page"
       : result.pages == null ? "could not count" : "";
     $("m-upload").textContent = fmtBytes(result.upload_bytes);
+    if (result.source && result.source.type === "arxiv") {
+      $("m-upload-d").textContent = `arXiv ${result.source.paper_id} · ` +
+        result.source.title;
+    }
     $("m-nb").textContent = fmtBytes(result.notebook_bytes);
     $("m-chars-d").textContent = outputChars
       ? `${fmtInt(outputChars)} characters written` : "";
@@ -176,25 +180,28 @@ export function initMetrics() {
   }
   loadSession();
 
-  function showFile(file) {
-    $("m-upload").textContent = fmtBytes(file.size);
-    $("m-upload-d").textContent = file.name;
+  // paper: a File, or {name, size} (size unknown until an arXiv PDF
+  // has been downloaded).
+  function showFile(paper) {
+    $("m-upload").textContent = fmtBytes(paper.size);
+    $("m-upload-d").textContent = paper.name;
   }
 
   return {
     showFile,
 
-    start(file, config) {
+    start(paper, config) {
       RUN_IDS.forEach((id) => set(id, "—"));
       RUN_DETAIL_IDS.forEach((id) => { $(id).textContent = ""; });
       $("m-budget-bar").style.width = "0";
       $("m-time-d").textContent = "running…";
       $("metrics-served").hidden = true;
-      stages = [{ stage: "upload", start: Date.now() }];
+      stages = [{ stage: paper.kind === "arxiv" ? "fetching" : "upload",
+        start: Date.now() }];
       endedAt = null;
       outputChars = 0;
       renderStages();
-      showFile(file);
+      showFile(paper);
       $("metrics-note").textContent = config && config.provider
         ? `Running on ${config.provider} · ${config.model}` : "Running…";
       $("metrics-note").hidden = false;

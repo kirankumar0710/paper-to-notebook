@@ -1,0 +1,172 @@
+Prompt used to create SKILL.md in this folder (kept for reference only;
+Claude Code does not load this file, because SKILL.md does not link to it).
+
+How SKILL.md was made:
+1. The guidelines below were pasted into Claude Code. Claude applied them to
+   the dashboard (api/static), moving the palette and spacing into tokens
+   in base.css.
+2. Then: "create it" -> saved as .claude/skills/paper-notebook-ui-design/
+   SKILL.md, with the text below plus a "Where this lives in the code"
+   section and the values used (12px radius, 16px padding, 13px titles).
+
+----------------------------------------------------------------------------
+Original prompt (pasted as-is):
+----------------------------------------------------------------------------
+
+# Skill: Paper-to-Notebook UI Design Guidelines
+
+## 1. Objective
+
+Establish a consistent, clean, modern SaaS dashboard UI for the Paper-to-Notebook application.
+
+Use the existing Paper-to-Notebook screenshot as the visual reference.
+
+The application should have a professional appearance, with clearly separated functional panels, consistent spacing, typography, colors, and alignment.
+
+## 2. Global Design Principles
+
+- Use a pure white page background (`#FFFFFF`).
+- Use white backgrounds for all functional panels.
+- Every major functional section must be enclosed in an individual rounded rectangular panel.
+- Maintain consistent panel borders, corner radius, padding, and spacing.
+- Use a clean, minimal, professional SaaS dashboard appearance.
+- Avoid unnecessary decorative elements, gradients, shadows, and excessive colors.
+- Maintain visual consistency across all sections.
+
+## 3. Panel Design Standards
+
+Every functional section must follow the same panel structure.
+
+### Panel appearance
+
+- Background: `#FFFFFF`
+- Border: `1px solid #E2E8F0`
+- Border radius: `10px` to `12px`
+- Internal padding: `12px` to `16px`
+- Consistent spacing between panels.
+- Avoid heavy shadows.
+- All panels must have consistent styling.
+
+### Panel heading
+
+- Position: Top-left corner.
+- Font weight: Bold.
+- Font size: 12px to 13px.
+- Text transformation: Uppercase.
+- Color: `#1E293B`.
+- Maintain consistent spacing below the heading.
+
+### Panel actions
+
+- If a panel has an action such as Refresh, Clear, Settings, or Download:
+  - Position it at the top-right corner.
+  - Keep it aligned horizontally with the panel heading.
+  - Use a subtle blue text/button style.
+  - Avoid oversized buttons.
+  - Use consistent styling across all panels.
+
+## 4. Color Palette
+
+Use the following standard color palette.
+
+| Purpose | Color |
+|---|---|
+| Page background | #FFFFFF |
+| Panel background | #FFFFFF |
+| Panel border | #E2E8F0 |
+| Primary accent | #2563EB |
+| Primary hover | #1D4ED8 |
+| Main text | #1E293B |
+| Secondary text | #64748B |
+| Success | #16A34A |
+| Warning | #D97706 |
+| Error | #DC2626 |
+| Muted background | #F1F5F9 |
+
+Use blue as the primary interactive color.
+
+Use green, amber, and red only to communicate status.
+
+Do not introduce additional colors without a functional reason.
+
+## 5. Application Panel Structure
+
+Apply the common panel design to the following sections.
+
+### Configuration
+- Display provider, model, API key status, save folder, and generation options.
+- Keep labels and values aligned.
+- Use clear status indicators.
+- Provide Refresh at the top-right when applicable.
+
+### Upload Paper / Specify Link
+- Provide a PDF upload/drop area.
+- Provide a separate arXiv URL or ID input.
+- Make the primary Convert to Notebook button visually prominent.
+- Clearly communicate upload and processing states.
+
+### Download
+- Display the generated notebook information.
+- Provide relevant download/open actions.
+- Show an appropriate empty state when no notebook is available.
+- Provide Refresh at the top-right.
+
+### LLM Output
+- Display generated explanations and notebook-generation output.
+- Support readable text formatting.
+- Clearly distinguish loading, completed, and error states.
+
+### MCP Activity Log
+- Display MCP server activity in chronological order.
+- Show server connection status.
+- Display tool calls, arguments, execution status, and results where appropriate.
+- Provide Clear at the top-right.
+- Use readable timestamps and subtle status indicators.
+- Support automatic polling without disrupting the user's interaction.
+
+### Metrics
+- Display token usage, cost, execution time, PDF information, notebook information, and GPU information.
+- Organize related metrics into logical groups.
+- Use consistent metric cards.
+- Ensure numbers and labels are easy to scan.
+
+## 6. Typography and Spacing
+
+- Use a modern sans-serif font.
+- Prefer Inter or the application's existing equivalent.
+- Use consistent font sizes and weights.
+- Maintain consistent spacing between headings, content, and controls.
+- Align panel headings and actions.
+- Avoid cramped content and unnecessary whitespace.
+
+## 7. Responsive Design
+
+- Desktop: Use a multi-column dashboard layout similar to the reference screenshot.
+- Tablet: Reduce the number of columns while preserving panel separation.
+- Mobile: Stack panels vertically.
+- Ensure buttons, inputs, and log entries remain usable at all screen sizes.
+
+## 8. Implementation Rules
+
+- Reuse common panel/header components wherever possible.
+- Do not implement different styling rules for individual panels.
+- Maintain a shared color palette and spacing system.
+- Do not change application functionality or backend behavior while applying UI styling.
+- Preserve existing API integrations, MCP interactions, polling mechanisms, and application state.
+- Avoid unnecessary component rewrites.
+
+## 9. Acceptance Criteria
+
+The implementation is complete when:
+
+1. Every major functional section is enclosed in a rounded panel.
+2. All panels use a consistent white background and subtle border.
+3. Every heading is bold and positioned at the top-left.
+4. Panel actions, when present, are positioned at the top-right.
+5. Colors are consistent with the defined palette.
+6. Panel spacing, padding, and border radius are consistent.
+7. The dashboard looks clean and professional.
+8. Existing application functionality remains unchanged.
+9. The layout works on desktop, tablet, and mobile.
+
+**Primary objective:** Consistency across the entire application. Every panel should look like part of the same product, not an independently designed component.

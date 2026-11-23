@@ -14,5 +14,6 @@ dl.config dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .badge.bad { color: var(--error); }
 .badge.warn { color: var(--warn); }
 ul.problems { margin: 12px 0 0; padding: 10px 12px 10px 28px;
-  border-radius: 8px; background: var(--subtle); color: var(--error);
+  border-radius: var(--radius-sm); background: var(--subtle);
+  color: var(--error);
   font-size: 0.85rem; }

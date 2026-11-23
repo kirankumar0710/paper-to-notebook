@@ -64,6 +64,17 @@ api_key_env = ["OPENAI_API_KEY"]
 [app]
 output_dir = "NOTEBOOK_OUTPUT_DIR"
 
+# arXiv papers. Pasting an arXiv ID or link looks the paper up with the
+# arXiv MCP server (the arxiv-mcp-server package), started over stdio for
+# each lookup; the app then downloads the PDF from arxiv.org.
+#
+#   command  how to start the MCP server; "{python}" is this app's Python.
+#            e.g. ["uvx", "arxiv-mcp-server"] to run it with uv instead.
+#   timeout  seconds to wait for the MCP lookup.
+[arxiv]
+command = ["{python}", "-m", "arxiv_mcp_server"]
+timeout = 60
+
 # Prices for the dashboard's cost estimate.
 #
 #   fast_multiplier  fast mode is billed at this times the prices below.

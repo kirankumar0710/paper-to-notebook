@@ -15,13 +15,15 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.responses import Response
+from starlette.types import Scope
 
 from api.dependencies import (
     check_configuration,
     get_llm_provider,
     get_output_dir,
 )
-from api.routes import config, convert, dashboard, download, metrics
+from api.routes import config, convert, dashboard, download, mcp, metrics
 from api.routes.config import describe_configuration, health
 from api.routes.convert import (
     convert_pdf_to_notebook,
@@ -61,6 +63,21 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     yield
 
 
+class RevalidatedStaticFiles(StaticFiles):
+    """Static files the browser must re-check before reusing.
+
+    Without a ``Cache-Control`` header, browsers keep CSS and JS for a
+    while based on their age, so after an update the dashboard could load
+    new HTML with old styles. ``no-cache`` makes them ask every time; an
+    unchanged file is answered with a cheap 304 using its ETag.
+    """
+
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
 app = FastAPI(
     lifespan=lifespan,
     title="Paper to Notebook",
@@ -82,7 +99,9 @@ app.add_middleware(
 
 # The dashboard and its panels' CSS/JS.
 app.include_router(dashboard.router)
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount(
+    "/static", RevalidatedStaticFiles(directory=STATIC_DIR), name="static"
+)
 # One router per panel: 1 Configuration, 2-4 Upload/Output/Metrics
 # (convert streams the per-run metrics; metrics keeps session totals),
 # 5 Download.
@@ -90,3 +109,5 @@ app.include_router(config.router)
 app.include_router(convert.router)
 app.include_router(metrics.router)
 app.include_router(download.router)
+# MCP activity log: arXiv lookups through the arXiv MCP server.
+app.include_router(mcp.router)

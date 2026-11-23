@@ -1,0 +1,26 @@
+<!-- 3. LLM output -->
+<section class="panel" id="output-panel" aria-labelledby="output-h">
+  <div class="panel-head">
+    <h2 id="output-h">LLM output</h2>
+  </div>
+  <p class="empty" id="output-empty">Upload a paper or paste an arXiv link
+    and click <b>Convert to notebook</b>. Progress and the model's reasoning
+    summary will show here.</p>
+  <div id="output-body" hidden>
+    <ol id="steps">
+      <li data-step="uploaded">Paper</li>
+      <li data-step="waiting">Sent</li>
+      <li data-step="thinking">Thinking</li>
+      <li data-step="writing">Writing</li>
+      <li data-step="building">Building</li>
+    </ol>
+    <p id="stage" aria-live="polite"><span id="stage-text">Starting…</span>
+      <span class="elapsed" id="elapsed"></span></p>
+    <p class="label">Activity</p>
+    <ol id="log"></ol>
+    <div id="thinking-wrap" hidden>
+      <p class="label">Reasoning summary</p>
+      <p id="thinking"></p>
+    </div>
+  </div>
+</section>

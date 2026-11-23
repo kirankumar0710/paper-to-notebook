@@ -1,15 +1,24 @@
-<!-- 2. Upload -->
+<!-- 2. Upload paper / specify link -->
 <section class="panel" id="upload-panel" aria-labelledby="upload-h">
   <div class="panel-head">
-    <h2 id="upload-h"><span class="num">2</span>Upload paper</h2>
+    <h2 id="upload-h">Upload paper / specify link</h2>
   </div>
   <form id="form">
     <label class="drop" id="drop" for="file">
       <strong>Choose a PDF</strong> or drag it here
       <span id="file-name">No file chosen (max 15 MB)</span>
     </label>
-    <input id="file" name="file" type="file" accept=".pdf,application/pdf"
-      required>
+    <input id="file" name="file" type="file" accept=".pdf,application/pdf">
+
+    <p class="or"><span>or</span></p>
+
+    <label class="field-label" for="arxiv">arXiv link or ID</label>
+    <input class="text" id="arxiv" name="arxiv" type="text"
+      inputmode="url" autocomplete="off" spellcheck="false"
+      placeholder="https://arxiv.org/abs/1706.03762 or 1706.03762">
+    <span class="hint" id="arxiv-hint">Looked up with the arXiv MCP server;
+      see the MCP activity log.</span>
+
     <button class="primary" id="submit" type="submit" disabled>
       Convert to notebook</button>
   </form>

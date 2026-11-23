@@ -1,0 +1,29 @@
+/* 3. LLM output */
+#output-panel { display: flex; flex-direction: column; }
+#steps { display: flex; gap: 6px; margin: 0 0 12px; padding: 0;
+  list-style: none; flex-wrap: wrap; }
+#steps li { font-size: 0.78rem; padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--border); color: var(--muted); }
+#steps li.active { border-color: var(--accent); color: var(--accent);
+  font-weight: 600; }
+#steps li.complete { color: var(--ok); border-color: var(--ok); }
+#stage { margin: 0 0 10px; font-weight: 600; }
+#stage .elapsed { color: var(--muted); font-weight: 400; }
+/* Running, done and failed look different at a glance. */
+#stage.ok { color: var(--ok); }
+#stage.error { color: var(--error); }
+#log {
+  margin: 0; padding: 10px 12px; list-style: none; border-radius: var(--radius-sm);
+  background: var(--subtle); font-family: var(--mono); font-size: 0.8rem;
+  height: 14em; overflow-y: auto; overscroll-behavior: contain;
+  resize: vertical;
+}
+#log li { display: flex; gap: 10px; }
+#log time { color: var(--muted); flex: none; }
+#log li.error { color: var(--error); }
+#log li.ok { color: var(--ok); }
+#thinking { margin: 0; padding: 10px 12px; border-radius: var(--radius-sm);
+  background: var(--subtle); color: var(--muted); font-size: 0.85rem;
+  font-style: italic; height: 18em; overflow-y: auto;
+  overscroll-behavior: contain; resize: vertical;
+  white-space: pre-wrap; overflow-wrap: anywhere; }

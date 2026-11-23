@@ -1,0 +1,48 @@
+/* MCP activity log */
+#mcp-panel { display: flex; flex-direction: column; }
+.live { display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.78rem; color: var(--muted); }
+.live i { width: 8px; height: 8px; border-radius: 50%;
+  background: var(--ok); }
+.live.active i { animation: mcp-pulse 1s ease-in-out infinite; }
+.live.off i { background: var(--error); animation: none; }
+@keyframes mcp-pulse { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) {
+  .live.active i { animation: none; }
+}
+.mcp-server { margin: 0 0 10px; font-size: 0.8rem; color: var(--muted); }
+
+/* The list fills the panel; the row's height comes from LLM output. */
+.mcp-events {
+  flex: 1 1 0; min-height: 16em; margin: 0; padding: 4px 0; list-style: none;
+  overflow-y: auto; overscroll-behavior: contain;
+  border-radius: var(--radius-sm); background: var(--subtle);
+}
+.mcp-events:empty { display: none; }
+.mcp-events li { padding: 7px 12px; border-top: 1px solid var(--border);
+  font-size: 0.82rem; display: grid; gap: 3px; }
+.mcp-events li:first-child { border-top: 0; }
+.mcp-events .row { display: flex; align-items: baseline; gap: 8px;
+  min-width: 0; }
+.mcp-events time { color: var(--muted); font-family: var(--mono);
+  font-size: 0.75rem; flex: none; }
+.mcp-events .msg { min-width: 0; overflow-wrap: anywhere; }
+.mcp-events .ms { margin-left: auto; color: var(--muted); flex: none;
+  font-family: var(--mono); font-size: 0.75rem; }
+.mcp-events .detail, .mcp-events .args { color: var(--muted);
+  overflow-wrap: anywhere; font-size: 0.78rem; }
+.mcp-events .args { font-family: var(--mono); }
+.mcp-events .run { font-weight: 600; color: var(--text); font-size: 0.75rem;
+  padding: 8px 12px 2px; border-top: 0; }
+
+/* Event kinds */
+.kind { flex: none; font-size: 0.68rem; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase; padding: 1px 6px;
+  border-radius: 4px; border: 1px solid currentColor; }
+.kind.server { color: var(--muted); }
+.kind.call { color: var(--accent); }
+.kind.result { color: var(--ok); }
+.kind.http { color: var(--text); }   /* the app's own download */
+.kind.error { color: var(--error); }
+li.error .msg { color: var(--error); }
+li.call .msg { font-family: var(--mono); font-size: 0.8rem; }

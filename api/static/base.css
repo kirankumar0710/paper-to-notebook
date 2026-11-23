@@ -1,29 +1,44 @@
 /* Theme, page layout and styles shared by every panel. Each panel's own
-   styles are in panels/<name>/<name>.css. */
+   styles are in panels/<name>/<name>.css and use only these tokens.
+
+   Design rules (all panels alike): white page and panels, 1px #E2E8F0
+   border, 12px radius, 16px padding, bold uppercase title at the top-left,
+   actions (Refresh, Clear) as small blue text at the top-right. Blue is the
+   only interactive colour; green, amber and red only show status. */
 :root {
-  --bg: #f4f5f8; --card: #ffffff; --text: #1d2330; --muted: #5d6677;
-  --border: #dde1e8; --subtle: #f0f2f6; --accent: #2f6fde;
-  --accent-text: #ffffff; --error: #b42318; --ok: #1a7f37; --warn: #9a6700;
+  /* Palette */
+  --bg: #ffffff;           /* page */
+  --card: #ffffff;         /* panels */
+  --border: #e2e8f0;       /* panel and control borders */
+  --accent: #2563eb;       /* primary / interactive */
+  --accent-hover: #1d4ed8;
+  --accent-text: #ffffff;
+  --text: #1e293b;         /* main text and panel titles */
+  --muted: #64748b;        /* secondary text */
+  --subtle: #f1f5f9;       /* muted backgrounds: tiles, logs */
+  --ok: #16a34a;           /* success */
+  --warn: #d97706;         /* warning */
+  --error: #dc2626;        /* error */
+  /* Spacing and shape */
+  --radius: 12px;          /* panels */
+  --radius-sm: 8px;        /* controls, tiles, logs inside panels */
+  --pad: 16px;             /* panel padding */
+  --gap: 16px;             /* between panels */
+  --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #101318; --card: #191d25; --text: #e6e9ef; --muted: #9aa3b2;
-    --border: #2d3440; --subtle: #222833; --accent: #5b8ff0;
-    --accent-text: #0d1117; --error: #ff7b72; --ok: #56d364;
-    --warn: #e3b341;
-  }
+  color-scheme: light;
 }
 * { box-sizing: border-box; }
 body {
   margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
-  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 15px/1.5 var(--font);
 }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 [hidden] { display: none !important; }
 
 /* Page header */
 body > header {
-  max-width: 1280px; margin: 0 auto; padding: 20px 16px 4px;
+  max-width: 1440px; margin: 0 auto; padding: 20px 16px 4px;
   display: flex; align-items: baseline; justify-content: space-between;
   gap: 12px; flex-wrap: wrap;
 }
@@ -32,54 +47,68 @@ body > header p { margin: 2px 0 0; color: var(--muted); font-size: 0.9rem; }
 body > header nav a { color: var(--accent); font-size: 0.9rem;
   margin-left: 14px; }
 
-/* Dashboard grid: where each panel sits */
+/* Dashboard grid: where each panel sits.
+   Row 1: Configuration, Upload paper / specify link, Download.
+   Row 2: LLM output, with the MCP activity log on its right.
+   Row 3: Metrics, full width. */
 .grid {
-  max-width: 1280px; margin: 0 auto; padding: 12px 16px 32px;
-  display: grid; gap: 16px;
-  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  max-width: 1440px; margin: 0 auto; padding: 12px 16px 32px;
+  display: grid; gap: var(--gap);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   grid-template-areas:
-    "config   metrics"
-    "upload   output"
-    "download output";
-  grid-template-rows: auto auto 1fr;
+    "config upload download"
+    "output output mcp"
+    "metrics metrics metrics";
 }
-@media (max-width: 880px) {
+@media (max-width: 1100px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "config   upload"
+      "download download"
+      "output   output"
+      "mcp      mcp"
+      "metrics  metrics";
+  }
+}
+@media (max-width: 720px) {
   .grid {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "config" "upload" "metrics" "output" "download";
-    grid-template-rows: none;
+    grid-template-areas: "config" "upload" "download" "output" "mcp"
+      "metrics";
   }
 }
 #config-panel { grid-area: config; }
 #upload-panel { grid-area: upload; }
-#metrics-panel { grid-area: metrics; }
-#output-panel { grid-area: output; }
 #download-panel { grid-area: download; }
+#output-panel { grid-area: output; }
+#mcp-panel { grid-area: mcp; }
+#metrics-panel { grid-area: metrics; }
 
-/* Panel frame */
+/* Panel frame: the same for every panel */
 section.panel {
   background: var(--card); border: 1px solid var(--border);
-  border-radius: 12px; padding: 16px 18px; min-width: 0;
+  border-radius: var(--radius); padding: var(--pad); min-width: 0;
 }
+/* Title at the top-left, actions at the top-right on the same line. The
+   fixed height keeps titles aligned whether or not a panel has actions. */
 .panel-head {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 8px; margin-bottom: 12px;
+  gap: 8px; min-height: 28px; margin-bottom: 12px;
 }
 .panel-head h2 {
-  margin: 0; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em;
-  text-transform: uppercase; color: var(--muted);
+  margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--text);
 }
-.panel-head h2 .num {
-  display: inline-grid; place-items: center; width: 20px; height: 20px;
-  margin-right: 8px; border-radius: 50%; background: var(--subtle);
-  color: var(--text); font-size: 0.75rem; letter-spacing: 0;
-}
+.panel-actions { display: flex; align-items: center; gap: 12px; }
 
 /* Shared bits */
 button.link {
   border: 0; background: none; color: var(--accent); font: inherit;
-  font-size: 0.85rem; cursor: pointer; padding: 2px 4px;
+  font-size: 13px; font-weight: 500; cursor: pointer; padding: 2px 4px;
+  border-radius: 4px;
 }
+button.link:hover { color: var(--accent-hover); text-decoration: underline; }
 .empty { color: var(--muted); font-size: 0.9rem; margin: 0; }
 .sub { display: block; color: var(--muted); font-size: 0.82rem; }
 code, .mono { font-family: var(--mono); font-size: 0.85em; }
