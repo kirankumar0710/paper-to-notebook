@@ -29,6 +29,49 @@ fails, `/convert` returns **503** with a `Retry-After` header — try again a
 little later, or switch model with `PROVIDER_MODEL`.
 Generated code should be reviewed before you rely on its results.
 
+## Overview
+
+The app is a single FastAPI server with a browser dashboard. It has four
+parts, and only one of them talks to the LLM:
+
+![Overview: dashboard, API routes, conversion and LLM providers, with shared helpers in util/](docs/overview.svg)
+
+| Part | Folder | What it does |
+|------|--------|--------------|
+| Dashboard | `api/static/` | Five panels (Configuration, Upload, LLM output, Metrics, Download) as plain HTML, CSS and JavaScript modules. `app.js` connects them. |
+| API routes | `api/routes/` | One module per panel. They check input, start the conversion, stream progress and serve files, and hand the real work to the packages below. |
+| Conversion | `notebook_builder/` | Sends the PDF with a prompt and a JSON schema to the provider, then turns the JSON reply into a Colab `.ipynb`. |
+| LLM providers | `providers/` | One class per vendor (Anthropic, Gemini, OpenAI) behind a common interface. Handles API keys, retries and progress updates. `factory.py` picks one from `PROVIDER`. |
+
+Shared helpers live in `util/`: loading `config.toml`, cost estimates,
+PDF page counts, saving files without overwriting, and logging with API
+keys masked.
+
+**One conversion, step by step:**
+
+1. The Upload panel posts the PDF to `/convert/stream`.
+2. `convert.py` checks the file (PDF header, 15 MB limit) and counts its
+   pages.
+3. It calls `pdf_to_notebook()` in a worker thread, so the server stays
+   responsive during a request that can take minutes.
+4. The provider sends the PDF to the LLM API and retries if the API is
+   busy or rate limited. While it waits, it reports progress (waiting,
+   thinking, writing). Only Claude streams its reply, so Gemini and OpenAI
+   show "waiting" until the whole reply arrives.
+5. Progress reaches the browser as server-sent events in the LLM output
+   panel.
+6. The JSON reply is built into a notebook, saved to the output folder,
+   priced and added to the session totals.
+7. A final `result` event fills the Metrics and Download panels. If
+   anything fails, the stream ends with an `error` event instead.
+
+**Configuration** comes from `config.toml` (defaults), an optional
+override file named by `PAPER_TO_NOTEBOOK_CONFIG`, and environment
+variables, in increasing order of priority. `PROVIDER` and API keys
+come only from the environment.
+
+For every module, endpoint and call, see [Architecture](#architecture).
+
 ## Setup
 
 You need Python 3.11+ and an API key for Anthropic, Google Gemini or OpenAI.
@@ -216,6 +259,23 @@ pytest -v --cov      # fails if coverage drops below 95%
 
 The tests use fake LLM clients, so they make no API calls and need no keys.
 
+## Architecture
+
+The detailed version of the [Overview](#overview). All diagrams are in
+[`docs/`](docs/) as SVG and PNG; [`docs/architecture.html`](docs/architecture.html)
+shows them together on one page with captions.
+
+**Subsystems:** every dashboard panel, the route module it calls, the
+packages behind them, and what leaves the server. The blue path is one
+conversion.
+
+![Subsystems: dashboard panels, API route modules, Python packages and external services, with the endpoints and calls between them](docs/architecture-subsystems.svg)
+
+**One conversion, in order:** from the PDF upload to the final `result`
+event, including the worker thread, the LLM call and the progress events.
+
+![Sequence of one conversion: browser, convert.py, notebook_builder, provider and LLM API](docs/architecture-conversion-sequence.svg)
+
 ## Project Structure
 
 ```
@@ -227,6 +287,7 @@ The tests use fake LLM clients, so they make no API calls and need no keys.
 │   │   ├── dashboard.py    # GET / — assembles the page from the panels
 │   │   ├── config.py       # 1 Configuration: /api/config, /health
 │   │   ├── convert.py      # 2–4 Upload, LLM output, Metrics: /convert…
+│   │   ├── metrics.py      # 4 Metrics: /api/metrics/session
 │   │   └── download.py     # 5 Download: /api/notebooks
 │   └── static/
 │       ├── index.html      # Page shell; one include line per panel
@@ -249,8 +310,11 @@ The tests use fake LLM clients, so they make no API calls and need no keys.
 │   ├── config.py           # config.toml loader, API key lookup
 │   ├── files.py            # Save files without overwriting
 │   ├── log.py              # Logging setup, secret masking
+│   ├── pdf.py              # Page count
+│   ├── pricing.py          # Cost estimate from [pricing]
 │   ├── text_utils.py       # Safe filenames
 │   └── url_utils.py        # Split API version off base URLs
+├── docs/                   # Overview and architecture diagrams
 ├── tests/
 ├── config.toml             # Provider defaults and prices (no keys)
 ├── output/                 # Saved notebooks (git-ignored)

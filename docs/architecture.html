@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Paper to Notebook Architecture</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  /* Layout: one reading column of text, figures run wider and scroll sideways on phones. */
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --fg: #1b2230;
+    --muted: #5c6678;
+    --line: #b9c1ce;
+    --zone: #eceff4;
+    --accent: #2456c9;
+    --accent-soft: #dfe7fb;
+    --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12161d; --surface: #1a2029; --fg: #e3e8f0; --muted: #98a3b5;
+      --line: #445064; --zone: #171c24; --accent: #8cafff; --accent-soft: #22324f;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12161d; --surface: #1a2029; --fg: #e3e8f0; --muted: #98a3b5;
+    --line: #445064; --zone: #171c24; --accent: #8cafff; --accent-soft: #22324f;
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--bg); color: var(--fg); font-family: var(--font-sans);
+    font-size: 15px; line-height: 1.55;
+  }
+  .page {
+    max-width: 1180px; margin: 0 auto;
+    padding-block: 40px 64px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: grid; gap: 40px;
+  }
+  header { display: grid; gap: 8px; max-width: 68ch; }
+  .eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0; }
+  h1 { font-size: 30px; line-height: 1.2; font-weight: 600; margin: 0; text-wrap: balance; }
+  h2 { font-size: 19px; font-weight: 600; margin: 0; text-wrap: balance; }
+  p { margin: 0; }
+  .lede { color: var(--muted); }
+  code { font-family: var(--font-mono); font-size: 0.9em; }
+
+  section { display: grid; gap: 14px; }
+  section > p { max-width: 72ch; }
+  figure { margin: 0; display: grid; gap: 12px; }
+  .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--surface); }
+  .scroll svg { display: block; width: 100%; min-width: 900px; height: auto; }
+  figcaption { color: var(--muted); font-size: 14px; max-width: 80ch; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 22px; height: 0; border-top: 2px solid var(--line); }
+  .legend i.acc { border-color: var(--accent); }
+  .legend i.dash { border-top-style: dashed; }
+
+  /* SVG styling through the page tokens */
+  svg { color: var(--fg); }
+  .zone { fill: var(--zone); stroke: var(--line); stroke-width: 1; }
+  .zone.ext { fill: none; stroke-dasharray: 5 4; }
+  .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+  .box.acc { stroke: var(--accent); stroke-width: 1.6; }
+  .zlabel { font: 600 11px var(--font-mono); letter-spacing: 0.06em; fill: var(--muted); }
+  .t { font: 600 12px var(--font-mono); fill: var(--fg); }
+  .s { font: 400 11px var(--font-sans); fill: var(--muted); }
+  .lbl { font: 400 10.5px var(--font-mono); fill: var(--muted); }
+  .lbl.acc { fill: var(--accent); }
+  .note { font: italic 400 11px var(--font-sans); fill: var(--muted); }
+  .wire { fill: none; stroke: var(--line); stroke-width: 1.4; }
+  .wire.acc { stroke: var(--accent); stroke-width: 1.8; }
+  .wire.dash { stroke-dasharray: 5 4; }
+  .life { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 4; }
+  .head { fill: var(--line); }
+  .head.acc { fill: var(--accent); }
+  .act { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1; }
+
+  .chain { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .chip { background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+    padding: 6px 10px; font-size: 13px; display: grid; gap: 1px; min-width: 0; }
+  .chip b { font-weight: 500; }
+  .chip code { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+  .gt { color: var(--muted); font-family: var(--font-mono); }
+  .keynote { font-size: 14px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">paper-to-notebook · dev-ver-5.0</p>
+    <h1>How the pieces fit together</h1>
+    <p class="lede">A PDF goes in through the dashboard, one LLM call turns it into a notebook spec, and the server builds, saves and streams back a Colab <code>.ipynb</code>. Below: which subsystems exist, who calls whom, and the order of events in one conversion.</p>
+  </header>
+
+  <section>
+    <h2>Subsystems</h2>
+    <figure>
+      <div class="scroll">
+        <svg viewBox="0 0 1140 560" role="img" aria-label="Five dashboard panels talk to one FastAPI route module each. The conversion route calls notebook_builder, which asks a provider to call the LLM API. util saves notebooks to the output folder and reads config.toml.">
+          <defs>
+            <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0 0 L10 5 L0 10 z"/></marker>
+            <marker id="a1acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head acc" d="M0 0 L10 5 L0 10 z"/></marker>
+          </defs>
+
+          <!-- zones -->
+          <text class="zlabel" x="20" y="18">BROWSER · localhost:8000</text>
+          <rect class="zone" x="20" y="28" width="200" height="520" rx="10"/>
+          <text class="zlabel" x="360" y="18">api/ · FastAPI routes</text>
+          <rect class="zone" x="360" y="28" width="200" height="520" rx="10"/>
+          <text class="zlabel" x="660" y="18">PYTHON PACKAGES</text>
+          <rect class="zone" x="660" y="28" width="220" height="520" rx="10"/>
+          <text class="zlabel" x="940" y="18">OUTSIDE THE APP</text>
+          <rect class="zone ext" x="940" y="28" width="180" height="520" rx="10"/>
+
+          <!-- browser panels -->
+          <rect class="box" x="36" y="79" width="168" height="42" rx="6"/>
+          <text class="t" x="120" y="105" text-anchor="middle">1 · Configuration</text>
+          <rect class="box acc" x="36" y="190" width="168" height="42" rx="6"/>
+          <text class="t" x="120" y="216" text-anchor="middle">2 · Upload paper</text>
+          <rect class="box acc" x="36" y="250" width="168" height="42" rx="6"/>
+          <text class="t" x="120" y="276" text-anchor="middle">3 · LLM output</text>
+          <rect class="box" x="36" y="330" width="168" height="42" rx="6"/>
+          <text class="t" x="120" y="356" text-anchor="middle">4 · Metrics</text>
+          <rect class="box" x="36" y="410" width="168" height="42" rx="6"/>
+          <text class="t" x="120" y="436" text-anchor="middle">5 · Download</text>
+          <rect class="box" x="36" y="490" width="168" height="42" rx="6"/>
+          <text class="t" x="120" y="508" text-anchor="middle">index.html + app.js</text>
+          <text class="s" x="120" y="523" text-anchor="middle">wires the panels</text>
+
+          <!-- api routes -->
+          <rect class="box" x="376" y="79" width="168" height="42" rx="6"/>
+          <text class="t" x="460" y="97" text-anchor="middle">config.py</text>
+          <text class="s" x="460" y="112" text-anchor="middle">settings, key found?</text>
+
+          <rect class="box acc" x="376" y="190" width="168" height="102" rx="6"/>
+          <text class="t" x="460" y="208" text-anchor="middle">convert.py</text>
+          <text class="s" x="460" y="225" text-anchor="middle">checks the PDF</text>
+          <text class="s" x="460" y="240" text-anchor="middle">runs the conversion</text>
+          <text class="s" x="460" y="255" text-anchor="middle">streams SSE events</text>
+          <text class="s" x="460" y="270" text-anchor="middle">saves via download.py</text>
+
+          <rect class="box" x="376" y="330" width="168" height="42" rx="6"/>
+          <text class="t" x="460" y="348" text-anchor="middle">metrics.py</text>
+          <text class="s" x="460" y="363" text-anchor="middle">session totals</text>
+
+          <rect class="box" x="376" y="410" width="168" height="42" rx="6"/>
+          <text class="t" x="460" y="428" text-anchor="middle">download.py</text>
+          <text class="s" x="460" y="443" text-anchor="middle">registry, serves files</text>
+
+          <rect class="box" x="376" y="490" width="168" height="42" rx="6"/>
+          <text class="t" x="460" y="508" text-anchor="middle">dashboard.py</text>
+          <text class="s" x="460" y="523" text-anchor="middle">assembles the page</text>
+
+          <!-- packages -->
+          <rect class="box acc" x="676" y="50" width="188" height="100" rx="6"/>
+          <text class="t" x="692" y="70">providers/</text>
+          <text class="s" x="692" y="88">factory: get_provider()</text>
+          <text class="s" x="692" y="103">claude.py · gemini.py</text>
+          <text class="s" x="692" y="118">openai_provider.py</text>
+          <text class="s" x="692" y="133">retries 408 / 429 / 5xx</text>
+
+          <rect class="box acc" x="676" y="190" width="188" height="102" rx="6"/>
+          <text class="t" x="692" y="210">notebook_builder/</text>
+          <text class="s" x="692" y="228">prompt.py: prompt + schema</text>
+          <text class="s" x="692" y="243">converter.py: PDF → spec</text>
+          <text class="s" x="692" y="258">builder.py: spec → .ipynb</text>
+          <text class="s" x="692" y="273">pip cell, GPU runtime</text>
+
+          <rect class="box" x="676" y="330" width="188" height="122" rx="6"/>
+          <text class="t" x="692" y="350">util/</text>
+          <text class="s" x="692" y="368">config.py: config.toml loader</text>
+          <text class="s" x="692" y="383">pricing.py: cost estimate</text>
+          <text class="s" x="692" y="398">pdf.py: page count</text>
+          <text class="s" x="692" y="413">files.py: never overwrites</text>
+          <text class="s" x="692" y="428">log.py: masks API keys</text>
+
+          <!-- outside -->
+          <rect class="box acc" x="956" y="46" width="148" height="60" rx="6"/>
+          <text class="t" x="1030" y="66" text-anchor="middle">LLM API</text>
+          <text class="s" x="1030" y="82" text-anchor="middle">Anthropic · Gemini</text>
+          <text class="s" x="1030" y="97" text-anchor="middle">or OpenAI</text>
+
+          <rect class="box" x="956" y="118" width="148" height="42" rx="6"/>
+          <text class="t" x="1030" y="136" text-anchor="middle">config.toml</text>
+          <text class="s" x="1030" y="151" text-anchor="middle">+ environment vars</text>
+
+          <rect class="box" x="956" y="410" width="148" height="42" rx="6"/>
+          <text class="t" x="1030" y="428" text-anchor="middle">Output folder</text>
+          <text class="s" x="1030" y="443" text-anchor="middle">~/Downloads by default</text>
+
+          <!-- browser ↔ api -->
+          <line class="wire" x1="204" y1="100" x2="374" y2="100" marker-end="url(#a1)"/>
+          <text class="lbl" x="290" y="93" text-anchor="middle">GET /api/config</text>
+
+          <line class="wire acc" x1="204" y1="211" x2="374" y2="211" marker-end="url(#a1acc)"/>
+          <text class="lbl acc" x="290" y="204" text-anchor="middle">POST /convert/stream</text>
+
+          <line class="wire acc dash" x1="376" y1="271" x2="206" y2="271" marker-end="url(#a1acc)"/>
+          <text class="lbl acc" x="290" y="264" text-anchor="middle">SSE progress · result</text>
+
+          <line class="wire" x1="204" y1="351" x2="374" y2="351" marker-end="url(#a1)"/>
+          <text class="lbl" x="290" y="344" text-anchor="middle">GET /api/metrics/session</text>
+
+          <line class="wire" x1="204" y1="431" x2="374" y2="431" marker-end="url(#a1)"/>
+          <text class="lbl" x="290" y="424" text-anchor="middle">GET /api/notebooks/{id}</text>
+
+          <line class="wire dash" x1="376" y1="511" x2="206" y2="511" marker-end="url(#a1)"/>
+          <text class="lbl" x="290" y="504" text-anchor="middle">GET / → HTML</text>
+
+          <!-- api → packages -->
+          <line class="wire" x1="544" y1="100" x2="674" y2="100" marker-end="url(#a1)"/>
+          <text class="lbl" x="610" y="93" text-anchor="middle">resolve_settings</text>
+
+          <line class="wire acc" x1="544" y1="241" x2="674" y2="241" marker-end="url(#a1acc)"/>
+          <text class="lbl acc" x="610" y="234" text-anchor="middle">pdf_to_notebook()</text>
+
+          <line class="wire" x1="460" y1="292" x2="460" y2="328" marker-end="url(#a1)"/>
+          <text class="lbl" x="468" y="314">record_success</text>
+
+          <path class="wire" d="M544 282 H610 V372 H674" marker-end="url(#a1)"/>
+          <text class="lbl" x="616" y="318">cost, pages</text>
+
+          <line class="wire" x1="544" y1="431" x2="674" y2="431" marker-end="url(#a1)"/>
+          <text class="lbl" x="610" y="424" text-anchor="middle">save_unique</text>
+
+          <!-- inside packages -->
+          <line class="wire acc" x1="770" y1="190" x2="770" y2="152" marker-end="url(#a1acc)"/>
+          <text class="lbl acc" x="778" y="175">generate_json()</text>
+
+          <!-- packages → outside -->
+          <line class="wire acc" x1="864" y1="76" x2="954" y2="76" marker-end="url(#a1acc)"/>
+          <text class="lbl acc" x="910" y="69" text-anchor="middle">PDF + prompt</text>
+
+          <line class="wire" x1="956" y1="139" x2="866" y2="139" marker-end="url(#a1)"/>
+          <text class="lbl" x="910" y="132" text-anchor="middle">model, keys</text>
+
+          <line class="wire" x1="864" y1="431" x2="954" y2="431" marker-end="url(#a1)"/>
+          <text class="lbl" x="910" y="424" text-anchor="middle">writes .ipynb</text>
+        </svg>
+      </div>
+      <div class="legend" aria-hidden="true">
+        <span><i class="acc"></i>path of one conversion</span>
+        <span><i></i>request or call</span>
+        <span><i class="dash"></i>response pushed back</span>
+      </div>
+      <figcaption>Each dashboard panel has its own route module, and the routes stay thin: the work happens in <code>notebook_builder</code> and <code>providers</code>, and only <code>providers</code> talks to the LLM. The <code>result</code> event from <code>/convert/stream</code> also fills the Metrics and Download panels; <code>app.js</code> hands it to each panel.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>One conversion, in order</h2>
+    <figure>
+      <div class="scroll">
+        <svg viewBox="0 0 1000 610" role="img" aria-label="Sequence of one conversion: the browser posts the PDF, convert.py checks it and calls pdf_to_notebook in a thread, the provider calls the LLM API, progress is streamed back as server-sent events, the JSON spec is built into a notebook, saved, and the result event is sent to the browser.">
+          <defs>
+            <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0 0 L10 5 L0 10 z"/></marker>
+            <marker id="a2acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head acc" d="M0 0 L10 5 L0 10 z"/></marker>
+          </defs>
+
+          <!-- lanes -->
+          <rect class="box" x="20" y="16" width="140" height="36" rx="6"/>
+          <text class="t" x="90" y="39" text-anchor="middle">Browser</text>
+          <rect class="box" x="230" y="16" width="140" height="36" rx="6"/>
+          <text class="t" x="300" y="39" text-anchor="middle">convert.py</text>
+          <rect class="box" x="430" y="16" width="140" height="36" rx="6"/>
+          <text class="t" x="500" y="39" text-anchor="middle">notebook_builder</text>
+          <rect class="box" x="620" y="16" width="140" height="36" rx="6"/>
+          <text class="t" x="690" y="39" text-anchor="middle">provider</text>
+          <rect class="box acc" x="820" y="16" width="140" height="36" rx="6"/>
+          <text class="t" x="890" y="39" text-anchor="middle">LLM API</text>
+
+          <line class="life" x1="90" y1="52" x2="90" y2="600"/>
+          <line class="life" x1="300" y1="52" x2="300" y2="600"/>
+          <line class="life" x1="500" y1="52" x2="500" y2="600"/>
+          <line class="life" x1="690" y1="52" x2="690" y2="600"/>
+          <line class="life" x1="890" y1="52" x2="890" y2="600"/>
+
+          <!-- the slow, paid span -->
+          <rect class="act" x="684" y="250" width="12" height="160" rx="2"/>
+          <text class="note" x="790" y="352" text-anchor="middle">the slow, paid step</text>
+          <text class="note" x="790" y="367" text-anchor="middle">(often minutes)</text>
+
+          <!-- 1 -->
+          <line class="wire" x1="90" y1="90" x2="298" y2="90" marker-end="url(#a2)"/>
+          <text class="lbl" x="195" y="83" text-anchor="middle">POST /convert/stream (PDF)</text>
+          <!-- 2 self -->
+          <path class="wire" d="M300 122 h18 v14 h-16" marker-end="url(#a2)"/>
+          <text class="s" x="326" y="133">%PDF- check, ≤ 15 MB, count pages</text>
+          <!-- 3 -->
+          <line class="wire" x1="300" y1="170" x2="498" y2="170" marker-end="url(#a2)"/>
+          <text class="lbl" x="400" y="163" text-anchor="middle">pdf_to_notebook()</text>
+          <text class="s" x="400" y="186" text-anchor="middle">in a worker thread</text>
+          <!-- 4 -->
+          <line class="wire" x1="500" y1="210" x2="688" y2="210" marker-end="url(#a2)"/>
+          <text class="lbl" x="595" y="203" text-anchor="middle">generate_json(schema, pdf)</text>
+          <!-- 5 -->
+          <line class="wire acc" x1="696" y1="250" x2="888" y2="250" marker-end="url(#a2acc)"/>
+          <text class="lbl acc" x="790" y="243" text-anchor="middle">request · retries 429/5xx</text>
+          <!-- 6 -->
+          <line class="wire acc dash" x1="890" y1="290" x2="698" y2="290" marker-end="url(#a2acc)"/>
+          <text class="lbl acc" x="790" y="283" text-anchor="middle">reply (streamed: Claude)</text>
+          <!-- 7 -->
+          <line class="wire dash" x1="684" y1="330" x2="302" y2="330" marker-end="url(#a2)"/>
+          <text class="lbl" x="495" y="323" text-anchor="middle">on_progress → asyncio queue</text>
+          <!-- 8 -->
+          <line class="wire dash" x1="300" y1="370" x2="92" y2="370" marker-end="url(#a2)"/>
+          <text class="lbl" x="195" y="363" text-anchor="middle">SSE progress</text>
+          <text class="s" x="195" y="386" text-anchor="middle">waiting · thinking · writing</text>
+          <!-- 9 -->
+          <line class="wire dash" x1="684" y1="410" x2="502" y2="410" marker-end="url(#a2)"/>
+          <text class="lbl" x="595" y="403" text-anchor="middle">JSON spec</text>
+          <!-- 10 self -->
+          <path class="wire" d="M500 442 h18 v14 h-16" marker-end="url(#a2)"/>
+          <text class="s" x="526" y="453">build_notebook() → .ipynb</text>
+          <!-- 11 -->
+          <line class="wire dash" x1="500" y1="490" x2="302" y2="490" marker-end="url(#a2)"/>
+          <text class="lbl" x="400" y="483" text-anchor="middle">ConvertedNotebook</text>
+          <!-- 12 self -->
+          <path class="wire" d="M300 522 h18 v14 h-16" marker-end="url(#a2)"/>
+          <text class="s" x="326" y="533">save · cost · session totals</text>
+          <!-- 13 -->
+          <line class="wire dash" x1="300" y1="580" x2="92" y2="580" marker-end="url(#a2)"/>
+          <text class="lbl" x="195" y="573" text-anchor="middle">SSE result + metrics</text>
+        </svg>
+      </div>
+      <figcaption>The conversion runs in a worker thread so the server keeps answering; the provider's progress callback crosses back to the event loop through an <code>asyncio</code> queue, which the route drains into server-sent events. Only Claude streams, so with Gemini or OpenAI the dashboard sits on "waiting" until the reply arrives. If anything fails, the stream ends with an <code>error</code> event instead of <code>result</code>, and busy or rate-limited replies are retried up to 5 attempts first.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Where a setting comes from</h2>
+    <p>The provider's model, base URL and tuning are taken from the first source that has a value:</p>
+    <div class="chain">
+      <div class="chip"><b>Argument</b><code>get_provider(model=…)</code></div>
+      <span class="gt">›</span>
+      <div class="chip"><b>Environment</b><code>PROVIDER_MODEL, PROVIDER_EFFORT…</code></div>
+      <span class="gt">›</span>
+      <div class="chip"><b>Override file</b><code>$PAPER_TO_NOTEBOOK_CONFIG</code></div>
+      <span class="gt">›</span>
+      <div class="chip"><b>Defaults</b><code>config.toml</code></div>
+    </div>
+    <p class="keynote"><code>PROVIDER</code> itself and API keys come only from the environment; keys are never read from a file and never shown on the dashboard.</p>
+  </section>
+</div>
+</body>
+</html>

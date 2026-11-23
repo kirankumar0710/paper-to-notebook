@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="666" viewBox="0 0 1000 666" role="img" aria-label="Sequence of one conversion: the browser posts the PDF, convert.py checks it and calls pdf_to_notebook in a thread, the provider calls the LLM API, progress is streamed back as server-sent events, the JSON spec is built into a notebook, saved, and the result event is sent to the browser.">
+  <title>Paper to Notebook · one conversion, in order</title>
+  <style>
+  .bg { fill: #ffffff; }
+  .title { font: 600 18px "IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #1b2230; }
+  .zone { fill: #eceff4; stroke: #b9c1ce; stroke-width: 1; }
+  .zone.ext { fill: none; stroke-dasharray: 5 4; }
+  .box { fill: #ffffff; stroke: #b9c1ce; stroke-width: 1.2; }
+  .box.acc { stroke: #2456c9; stroke-width: 1.6; }
+  .zlabel { font: 600 11px "IBM Plex Mono", Menlo, Consolas, monospace; letter-spacing: 0.06em; fill: #5c6678; }
+  .t { font: 600 12px "IBM Plex Mono", Menlo, Consolas, monospace; fill: #1b2230; }
+  .s { font: 400 11px "IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #5c6678; }
+  .lbl { font: 400 10.5px "IBM Plex Mono", Menlo, Consolas, monospace; fill: #5c6678; }
+  .lbl.acc { fill: #2456c9; }
+  .note { font: italic 400 11px "IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #5c6678; }
+  .wire { fill: none; stroke: #b9c1ce; stroke-width: 1.4; }
+  .wire.acc { stroke: #2456c9; stroke-width: 1.8; }
+  .wire.dash { stroke-dasharray: 5 4; }
+  .life { stroke: #b9c1ce; stroke-width: 1; stroke-dasharray: 3 4; }
+  .head { fill: #b9c1ce; }
+  .head.acc { fill: #2456c9; }
+  .act { fill: #dfe7fb; stroke: #2456c9; stroke-width: 1; }
+</style>
+  <defs>
+            <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0 0 L10 5 L0 10 z"/></marker>
+            <marker id="a2acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head acc" d="M0 0 L10 5 L0 10 z"/></marker>
+          </defs>
+  <rect class="bg" x="0" y="0" width="1000" height="666"/>
+  <text class="title" x="20" y="30">Paper to Notebook · one conversion, in order</text>
+  <g transform="translate(0, 44)">
+          
+
+          <!-- lanes -->
+          <rect class="box" x="20" y="16" width="140" height="36" rx="6"/>
+          <text class="t" x="90" y="39" text-anchor="middle">Browser</text>
+          <rect class="box" x="230" y="16" width="140" height="36" rx="6"/>
+          <text class="t" x="300" y="39" text-anchor="middle">convert.py</text>
+          <rect class="box" x="430" y="16" width="140" height="36" rx="6"/>
+          <text class="t" x="500" y="39" text-anchor="middle">notebook_builder</text>
+          <rect class="box" x="620" y="16" width="140" height="36" rx="6"/>
+          <text class="t" x="690" y="39" text-anchor="middle">provider</text>
+          <rect class="box acc" x="820" y="16" width="140" height="36" rx="6"/>
+          <text class="t" x="890" y="39" text-anchor="middle">LLM API</text>
+
+          <line class="life" x1="90" y1="52" x2="90" y2="600"/>
+          <line class="life" x1="300" y1="52" x2="300" y2="600"/>
+          <line class="life" x1="500" y1="52" x2="500" y2="600"/>
+          <line class="life" x1="690" y1="52" x2="690" y2="600"/>
+          <line class="life" x1="890" y1="52" x2="890" y2="600"/>
+
+          <!-- the slow, paid span -->
+          <rect class="act" x="684" y="250" width="12" height="160" rx="2"/>
+          <text class="note" x="790" y="352" text-anchor="middle">the slow, paid step</text>
+          <text class="note" x="790" y="367" text-anchor="middle">(often minutes)</text>
+
+          <!-- 1 -->
+          <line class="wire" x1="90" y1="90" x2="298" y2="90" marker-end="url(#a2)"/>
+          <text class="lbl" x="195" y="83" text-anchor="middle">POST /convert/stream (PDF)</text>
+          <!-- 2 self -->
+          <path class="wire" d="M300 122 h18 v14 h-16" marker-end="url(#a2)"/>
+          <text class="s" x="326" y="133">%PDF- check, ≤ 15 MB, count pages</text>
+          <!-- 3 -->
+          <line class="wire" x1="300" y1="170" x2="498" y2="170" marker-end="url(#a2)"/>
+          <text class="lbl" x="400" y="163" text-anchor="middle">pdf_to_notebook()</text>
+          <text class="s" x="400" y="186" text-anchor="middle">in a worker thread</text>
+          <!-- 4 -->
+          <line class="wire" x1="500" y1="210" x2="688" y2="210" marker-end="url(#a2)"/>
+          <text class="lbl" x="595" y="203" text-anchor="middle">generate_json(schema, pdf)</text>
+          <!-- 5 -->
+          <line class="wire acc" x1="696" y1="250" x2="888" y2="250" marker-end="url(#a2acc)"/>
+          <text class="lbl acc" x="790" y="243" text-anchor="middle">request · retries 429/5xx</text>
+          <!-- 6 -->
+          <line class="wire acc dash" x1="890" y1="290" x2="698" y2="290" marker-end="url(#a2acc)"/>
+          <text class="lbl acc" x="790" y="283" text-anchor="middle">reply (streamed: Claude)</text>
+          <!-- 7 -->
+          <line class="wire dash" x1="684" y1="330" x2="302" y2="330" marker-end="url(#a2)"/>
+          <text class="lbl" x="495" y="323" text-anchor="middle">on_progress → asyncio queue</text>
+          <!-- 8 -->
+          <line class="wire dash" x1="300" y1="370" x2="92" y2="370" marker-end="url(#a2)"/>
+          <text class="lbl" x="195" y="363" text-anchor="middle">SSE progress</text>
+          <text class="s" x="195" y="386" text-anchor="middle">waiting · thinking · writing</text>
+          <!-- 9 -->
+          <line class="wire dash" x1="684" y1="410" x2="502" y2="410" marker-end="url(#a2)"/>
+          <text class="lbl" x="595" y="403" text-anchor="middle">JSON spec</text>
+          <!-- 10 self -->
+          <path class="wire" d="M500 442 h18 v14 h-16" marker-end="url(#a2)"/>
+          <text class="s" x="526" y="453">build_notebook() → .ipynb</text>
+          <!-- 11 -->
+          <line class="wire dash" x1="500" y1="490" x2="302" y2="490" marker-end="url(#a2)"/>
+          <text class="lbl" x="400" y="483" text-anchor="middle">ConvertedNotebook</text>
+          <!-- 12 self -->
+          <path class="wire" d="M300 522 h18 v14 h-16" marker-end="url(#a2)"/>
+          <text class="s" x="326" y="533">save · cost · session totals</text>
+          <!-- 13 -->
+          <line class="wire dash" x1="300" y1="580" x2="92" y2="580" marker-end="url(#a2)"/>
+          <text class="lbl" x="195" y="573" text-anchor="middle">SSE result + metrics</text>
+        </g>
+</svg>
