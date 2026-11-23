@@ -100,6 +100,8 @@
   .toc { display: grid; gap: 8px; }
   .toc ol { margin: 0; padding-left: 22px; display: grid; gap: 4px; font-size: 16px; }
   .toc a { color: var(--accent); text-decoration: none; }
+  .toc ol ol { margin-top: 4px; padding-left: 22px; list-style: none; padding-left: 4px; font-size: 15px; }
+  h3[id] { scroll-margin-top: 16px; }
   .toc a:hover, .toc a:focus-visible { text-decoration: underline; }
   section[id] { scroll-margin-top: 16px; }
 
@@ -155,7 +157,12 @@
     <ol>
       <li><a href="#architecture">Architecture</a></li>
       <li><a href="#conversion">One conversion, in order</a></li>
-      <li><a href="#example">Worked example</a></li>
+      <li><a href="#example">Worked example</a>
+        <ol>
+          <li><a href="#stages">3.1 Step by step: one paper through the four stages</a></li>
+          <li><a href="#real-run">3.2 Real run: non-linear activation functions</a></li>
+        </ol>
+      </li>
     </ol>
   </nav>
 
@@ -378,7 +385,10 @@
 
   <section id="example">
     <h2>3. Worked example</h2>
-    <p>One paper, <code>attention.pdf</code>, followed through the four stages. The LLM writes the content as JSON; ordinary code turns that JSON into the <code>.ipynb</code> file. The notebook below is real output from <code>build_notebook()</code> for the JSON shown (shortened to two content cells).</p>
+    <p>The LLM writes the notebook's content as JSON; ordinary code turns that JSON into the <code>.ipynb</code> file. Part 3.1 walks one paper through each stage with small samples; part 3.2 is a complete run on a real one-page paper, with links to the PDF and the notebook it produced.</p>
+
+    <h3 class="sub" id="stages">3.1 Step by step: one paper through the four stages</h3>
+    <p>A short made-up paper, <code>attention.pdf</code>, shows what each stage takes in and gives back: the PDF, the JSON the LLM writes, and the <code>.ipynb</code> that code builds from it.</p>
 
     <ol class="stages">
       <li class="stage">
@@ -449,7 +459,7 @@
               <li><code>requires_gpu</code> → Colab GPU setting (false here, so none)</li>
             </ul>
           </div>
-          <div class="io-col"><p class="io-label">Output: <code>.ipynb</code> (nbformat 4.5)</p>
+          <div class="io-col"><p class="io-label">Output: <code>.ipynb</code> (nbformat 4.5), real output of <code>build_notebook()</code> for the JSON above</p>
 <pre><code>{
  "cells": [
   {
@@ -531,7 +541,7 @@
       </li>
     </ol>
 
-    <h3 class="sub">A real run: non-linear activation functions</h3>
+    <h3 class="sub" id="real-run">3.2 Real run: non-linear activation functions</h3>
     <p>The same pipeline on a complete one-page paper with nine typeset equations. Open the PDF next to the notebook to see how each formula on the page became LaTeX in a markdown cell.</p>
 
     <div class="files">
