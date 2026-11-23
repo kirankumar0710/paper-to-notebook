@@ -50,6 +50,11 @@ come only from the environment.
 
 <mark><b>Architecture details:</b></mark> [docs/architecture.html](docs/architecture.html)
 
+<mark><b>Example:</b></mark> [non-linear activation functions.pdf](example/non-linear%20activation%20functions.pdf)
+→ [non-linear activation functions.ipynb](example/non-linear%20activation%20functions.ipynb),
+a one-page paper with nine equations and the notebook generated from it.
+Compare the two to see each formula turned into LaTeX.
+
 ## How it works
 
 1. `POST /convert` receives the PDF (max 15 MB).

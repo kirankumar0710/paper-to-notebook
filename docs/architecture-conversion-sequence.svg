@@ -12,6 +12,8 @@
   .s { font: 400 11px "IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #5c6678; }
   .lbl { font: 400 10.5px "IBM Plex Mono", Menlo, Consolas, monospace; fill: #5c6678; }
   .lbl.acc { fill: #2456c9; }
+  .io { font: 400 12px "IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #5c6678; }
+  .io .k { font: 600 11px "IBM Plex Mono", Menlo, Consolas, monospace; fill: #1b2230; }
   .note { font: italic 400 11px "IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #5c6678; }
   .wire { fill: none; stroke: #b9c1ce; stroke-width: 1.4; }
   .wire.acc { stroke: #2456c9; stroke-width: 1.8; }
