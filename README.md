@@ -7,28 +7,6 @@ The PDF is sent directly to an LLM (Anthropic Claude, Google Gemini or OpenAI), 
 reads the pages as they are — layout, equations, tables and figures — and
 writes the notebook.
 
-## How it works
-
-1. `POST /convert` receives the PDF (max 15 MB).
-2. The PDF and an instruction prompt go to the provider selected by
-   `PROVIDER`. The model replies with JSON matching a fixed schema: title,
-   extra pip packages, whether a GPU is needed, and an ordered list of
-   markdown/code cells.
-3. `notebook_builder` turns that JSON into a valid `.ipynb` with Colab
-   metadata, adding a `!pip install` cell and a GPU runtime when needed.
-4. The `.ipynb` is returned as a download named after the uploaded file
-   (`my_paper.pdf` → `my_paper.ipynb`). A copy is also saved on the
-   server in `$NOTEBOOK_OUTPUT_DIR`, or `~/Downloads` if it is not set (see [Output folder](#output-folder)). Open the notebook in Colab with
-   **File → Upload notebook**.
-
-A conversion is a paid API call and usually takes a minute or more.
-
-If the model is busy or rate limited (HTTP 408/429/5xx), the request is
-retried automatically, up to 5 attempts with growing delays. If it still
-fails, `/convert` returns **503** with a `Retry-After` header — try again a
-little later, or switch model with `PROVIDER_MODEL`.
-Generated code should be reviewed before you rely on its results.
-
 ## Overview
 
 The app is a single FastAPI server with a browser dashboard. It has four
@@ -71,6 +49,45 @@ variables, in increasing order of priority. `PROVIDER` and API keys
 come only from the environment.
 
 For every module, endpoint and call, see [Architecture](#architecture).
+
+## Architecture
+
+The detailed version of the [Overview](#overview). All diagrams are in
+[`docs/`](docs/) as SVG and PNG; [`docs/architecture.html`](docs/architecture.html)
+shows them together on one page with captions.
+
+**Subsystems:** every dashboard panel, the route module it calls, the
+packages behind them, and what leaves the server. The blue path is one
+conversion.
+
+![Subsystems: dashboard panels, API route modules, Python packages and external services, with the endpoints and calls between them](docs/architecture-subsystems.svg)
+
+**One conversion, in order:** from the PDF upload to the final `result`
+event, including the worker thread, the LLM call and the progress events.
+
+![Sequence of one conversion: browser, convert.py, notebook_builder, provider and LLM API](docs/architecture-conversion-sequence.svg)
+
+## How it works
+
+1. `POST /convert` receives the PDF (max 15 MB).
+2. The PDF and an instruction prompt go to the provider selected by
+   `PROVIDER`. The model replies with JSON matching a fixed schema: title,
+   extra pip packages, whether a GPU is needed, and an ordered list of
+   markdown/code cells.
+3. `notebook_builder` turns that JSON into a valid `.ipynb` with Colab
+   metadata, adding a `!pip install` cell and a GPU runtime when needed.
+4. The `.ipynb` is returned as a download named after the uploaded file
+   (`my_paper.pdf` → `my_paper.ipynb`). A copy is also saved on the
+   server in `$NOTEBOOK_OUTPUT_DIR`, or `~/Downloads` if it is not set (see [Output folder](#output-folder)). Open the notebook in Colab with
+   **File → Upload notebook**.
+
+A conversion is a paid API call and usually takes a minute or more.
+
+If the model is busy or rate limited (HTTP 408/429/5xx), the request is
+retried automatically, up to 5 attempts with growing delays. If it still
+fails, `/convert` returns **503** with a `Retry-After` header — try again a
+little later, or switch model with `PROVIDER_MODEL`.
+Generated code should be reviewed before you rely on its results.
 
 ## Setup
 
@@ -258,23 +275,6 @@ pytest -v --cov      # fails if coverage drops below 95%
 ```
 
 The tests use fake LLM clients, so they make no API calls and need no keys.
-
-## Architecture
-
-The detailed version of the [Overview](#overview). All diagrams are in
-[`docs/`](docs/) as SVG and PNG; [`docs/architecture.html`](docs/architecture.html)
-shows them together on one page with captions.
-
-**Subsystems:** every dashboard panel, the route module it calls, the
-packages behind them, and what leaves the server. The blue path is one
-conversion.
-
-![Subsystems: dashboard panels, API route modules, Python packages and external services, with the endpoints and calls between them](docs/architecture-subsystems.svg)
-
-**One conversion, in order:** from the PDF upload to the final `result`
-event, including the worker thread, the LLM call and the progress events.
-
-![Sequence of one conversion: browser, convert.py, notebook_builder, provider and LLM API](docs/architecture-conversion-sequence.svg)
 
 ## Project Structure
 
