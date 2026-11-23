@@ -48,24 +48,7 @@ override file named by `PAPER_TO_NOTEBOOK_CONFIG`, and environment
 variables, in increasing order of priority. `PROVIDER` and API keys
 come only from the environment.
 
-For every module, endpoint and call, see [Architecture](#architecture).
-
-## Architecture
-
-The detailed version of the [Overview](#overview). All diagrams are in
-[`docs/`](docs/) as SVG and PNG; [`docs/architecture.html`](docs/architecture.html)
-shows them together on one page with captions.
-
-**Subsystems:** every dashboard panel, the route module it calls, the
-packages behind them, and what leaves the server. The blue path is one
-conversion.
-
-![Subsystems: dashboard panels, API route modules, Python packages and external services, with the endpoints and calls between them](docs/architecture-subsystems.svg)
-
-**One conversion, in order:** from the PDF upload to the final `result`
-event, including the worker thread, the LLM call and the progress events.
-
-![Sequence of one conversion: browser, convert.py, notebook_builder, provider and LLM API](docs/architecture-conversion-sequence.svg)
+Architecture details: [docs/architecture.html](docs/architecture.html)
 
 ## How it works
 
