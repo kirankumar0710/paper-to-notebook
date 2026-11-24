@@ -54,10 +54,13 @@ body {
 /* Page header */
 body > header {
   max-width: 1440px; margin: 0 auto; padding: 20px 16px 4px;
-  display: flex; align-items: baseline; justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between;
   gap: 12px; flex-wrap: wrap;
 }
-body > header h1 { margin: 0; font-size: 1.35rem; }
+body > header h1 { margin: 0; font-size: 1.35rem; line-height: 0; }
+/* Logo image (2x pixels for sharp rendering); scales down on phones. */
+body > header .logo { display: block; width: 280px; max-width: 100%;
+  height: auto; }
 body > header p { margin: 2px 0 0; color: var(--muted); font-size: 0.9rem; }
 body > header nav a { color: var(--accent); font-size: 0.9rem;
   margin-left: 14px; }
