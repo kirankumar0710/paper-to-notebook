@@ -7,6 +7,17 @@ The PDF is sent directly to an LLM (Anthropic Claude, Google Gemini or OpenAI), 
 reads the pages as they are — layout, equations, tables and figures — and
 writes the notebook.
 
+Based on the original [VizuaraAI paper-to-notebook](https://github.com/VizuaraAI/paper-to-notebook).
+
+**Improvements over the original:**
+
+- **LLM provider agnostic:** works with Anthropic Claude, Google Gemini or
+  OpenAI, chosen with the `PROVIDER` environment variable.
+- **Better UI:** a dashboard with separate panels for configuration,
+  upload, live LLM output and downloads.
+- **Metrics:** token usage, estimated cost, time taken, and details of the
+  PDF and the generated `.ipynb`.
+
 ## Overview
 
 The app is a single FastAPI server with a browser dashboard. It has five
