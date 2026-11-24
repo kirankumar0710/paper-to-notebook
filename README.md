@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/icon.png" alt="Paper to Notebook icon: a PDF turned into a Colab notebook by an AI model" width="160">
+</p>
+
 # Paper to Notebook
 
 Upload a research paper PDF and get back a **Google Colab notebook** that
