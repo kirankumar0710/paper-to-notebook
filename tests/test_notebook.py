@@ -7,6 +7,7 @@ import asyncio
 import io
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -348,6 +349,9 @@ class TestSavedCopy:
             "metrics",
             "download",
             "check",
+            "mcp",
+            "paper",
+            "activity",
         ):
             assert f'id="{panel}-panel"' in page
 
@@ -361,6 +365,8 @@ class TestSavedCopy:
             "/static/panels/metrics/metrics.css",
             "/static/panels/check/check.js",
             "/static/panels/check/check.css",
+            "/static/panels/paper/paper.js",
+            "/static/panels/activity/activity.js",
         ):
             assert client.get(path).status_code == 200, path
 
@@ -374,6 +380,48 @@ class TestSavedCopy:
         page.write_text("<!-- include: ../secret.txt -->")
         with pytest.raises(FileNotFoundError):
             render_page(page, static)
+
+    def test_nested_includes(self, tmp_path):
+        from api.routes.dashboard import render_page
+
+        (tmp_path / "outer.html").write_text("[<!-- include: inner.html -->]")
+        (tmp_path / "inner.html").write_text("inner")
+        page = tmp_path / "index.html"
+        page.write_text("<!-- include: outer.html -->")
+        assert render_page(page, tmp_path) == "[inner]"
+
+    def test_include_loop_is_refused(self, tmp_path):
+        from api.routes.dashboard import render_page
+
+        (tmp_path / "loop.html").write_text("<!-- include: loop.html -->")
+        page = tmp_path / "index.html"
+        page.write_text("<!-- include: loop.html -->")
+        with pytest.raises(FileNotFoundError, match="nested too deeply"):
+            render_page(page, tmp_path)
+
+    @pytest.mark.parametrize(
+        ("panel", "tabs", "default"),
+        [
+            ("paper", ["upload", "download", "config"], "upload"),
+            ("activity", ["output", "mcp", "metrics"], "output"),
+        ],
+    )
+    def test_tabbed_panels(self, panel, tabs, default):
+        page = TestClient(api_main.app).get("/").text
+        assert f'id="{panel}-panel"' in page
+        for tab in tabs:
+            button = re.search(rf'id="tab-{tab}"[^>]*>', page).group(0)
+            assert f'aria-controls="{tab}-panel"' in button
+            selected = "true" if tab == default else "false"
+            assert f'aria-selected="{selected}"' in button
+            body = re.search(
+                rf'id="{tab}-panel" role="tabpanel"\s+'
+                rf'aria-labelledby="tab-{tab}"( hidden)?>',
+                page,
+            )
+            assert body is not None, tab
+            # Only the default tab is shown before the script runs.
+            assert (body.group(1) is None) == (tab == default)
 
 
 class TestRequiredConfiguration:

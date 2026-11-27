@@ -53,7 +53,7 @@ export function initOutput() {
       showStep("uploaded");
       if (source.kind === "arxiv") {
         $("stage-text").textContent = `Fetching ${source.ref} from arXiv…`;
-        log(`Fetching ${source.ref} from arXiv (see the MCP activity log)`);
+        log(`Fetching ${source.ref} from arXiv (see the MCP log tab)`);
       } else {
         $("stage-text").textContent = `Uploading ${source.name}…`;
         log(`Uploading ${source.name} (${fmtBytes(source.size)})`, "",

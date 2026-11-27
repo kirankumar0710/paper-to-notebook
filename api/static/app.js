@@ -1,11 +1,14 @@
 // Wires the dashboard panels together and runs a conversion.
 //
-// Each panel (panels/<name>/<name>.js) owns its own part of the page; this
-// file only passes data between them. The Upload panel starts a conversion
+// The page has two tabbed panels: Paper (tabs Upload, Download,
+// Configuration; panels/paper/) and Activity (tabs LLM output, MCP log,
+// Metrics; panels/activity/), plus the Run check drawer. Each tab's
+// module (panels/<name>/<name>.js) owns its own part of the page; this
+// file only passes data between them. The Upload tab starts a conversion
 // from a PDF or an arXiv link, and the events from POST /convert/stream go
-// to the LLM output, Metrics, Download and (when the run check is used)
-// Run check panels. The MCP activity log
-// polls on its own and only needs to know when a conversion is running.
+// to LLM output, Metrics, Download and (when the run check is used) Run
+// check. The MCP log polls on its own and only needs to know when a
+// conversion is running.
 import { readEvents } from "./shared.js";
 import { initConfig } from "./panels/config/config.js";
 import { initUpload } from "./panels/upload/upload.js";
@@ -13,13 +16,17 @@ import { initOutput } from "./panels/output/output.js";
 import { initMetrics } from "./panels/metrics/metrics.js";
 import { initDownload } from "./panels/download/download.js";
 import { initMcp } from "./panels/mcp/mcp.js";
+import { initPaper } from "./panels/paper/paper.js";
+import { initActivity } from "./panels/activity/activity.js";
 import { initCheck } from "./panels/check/check.js";
 
 let config = null;
 const output = initOutput();
 const metrics = initMetrics();
 const download = initDownload();
-const mcp = initMcp();
+const paperTabs = initPaper();
+const activity = initActivity();
+const mcp = initMcp({ onEvents: (count) => activity.mcpEvents(count) });
 const check = initCheck();
 const upload = initUpload({
   onChoose: (file) => metrics.showFile(file),
@@ -30,6 +37,7 @@ initConfig({
     config = loaded;
     upload.setMaxMb(loaded.max_upload_mb);
     upload.setVerify(loaded.verify);
+    paperTabs.configProblems(loaded.problems || []);
   },
 });
 
@@ -42,7 +50,8 @@ async function errorDetail(response) {
 }
 
 // source: {kind: "file", file} or {kind: "arxiv", ref} from the Upload
-// panel, with verify: whether to check that the notebook runs.
+// panel, with verify: whether to check that the notebook runs, and depth:
+// who the notebook is for.
 async function convert(source) {
   const isArxiv = source.kind === "arxiv";
   // What the output and metrics panels show for the paper.
@@ -55,6 +64,7 @@ async function convert(source) {
       "takes a minute or more."
     : "Converting… this usually takes a minute or more.") +
     (source.verify ? " Checking that it runs adds a few minutes." : ""));
+  activity.show("output");
   output.start(paper, { verify: source.verify });
   check.start(Boolean(source.verify));
   metrics.start(paper, config);
@@ -72,6 +82,7 @@ async function convert(source) {
     if (isArxiv) body.append("arxiv", source.ref);
     else body.append("file", source.file);
     body.append("verify", source.verify ? "true" : "false");
+    body.append("depth", source.depth || "practitioner");
     const response = await fetch("/convert/stream", { method: "POST", body });
     if (!response.ok) throw new Error(await errorDetail(response));
 
@@ -87,9 +98,10 @@ async function convert(source) {
         output.done(data);
         metrics.done(data);
         download.done(data);
+        paperTabs.show("download");
         check.done(data);
         upload.setStatus("Your notebook is ready. If it did not download " +
-          "automatically, use the Download panel.", "ok");
+          "automatically, use the Download tab.", "ok");
       } else if (name === "error") {
         finished = true;
         throw new Error(data.detail);

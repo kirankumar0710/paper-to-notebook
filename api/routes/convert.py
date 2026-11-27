@@ -46,6 +46,7 @@ from api.settings import (
     SAVED_PATH_HEADER,
 )
 from notebook_builder.converter import ConvertedNotebook, pdf_to_notebook
+from notebook_builder.prompt import DEFAULT_DEPTH, Depth
 from notebook_builder.verify import (
     VerifySettings,
     load_verify_settings,
@@ -97,6 +98,17 @@ ArxivRef = Annotated[
 ]
 
 VERIFY_HEADER = "X-Notebook-Verification"
+
+DepthOption = Annotated[
+    Depth,
+    Form(
+        description=(
+            "Who the notebook is for: ``beginner`` (explains more, "
+            "simpler code), ``practitioner`` (balanced) or ``expert`` "
+            "(brief explanations, fuller implementation)."
+        ),
+    ),
+]
 
 
 def get_verify_settings(
@@ -315,6 +327,7 @@ async def convert_pdf_to_notebook(
     file: PdfUpload = None,
     arxiv: ArxivRef = None,
     verify: VerifyOption = None,
+    depth: DepthOption = DEFAULT_DEPTH,
 ) -> Response:
     """Upload a paper PDF, or give an arXiv ID or link, and download a
     Google Colab notebook (``.ipynb``).
@@ -327,6 +340,9 @@ async def convert_pdf_to_notebook(
     With ``verify=true`` the notebook is run with ``QUICK_RUN = True``
     before it is returned, and the model fixes cells that fail; the
     ``X-Notebook-Verification`` header gives the result.
+
+    ``depth`` (``beginner``, ``practitioner`` or ``expert``) sets how
+    much the notebook explains compared with how much it implements.
 
     The LLM reads the PDF directly, so layout, equations and figures are
     taken into account. Expect a conversion to take a minute or more; use
@@ -354,6 +370,7 @@ async def convert_pdf_to_notebook(
                 source_name=source_name,
                 on_progress=capture,
                 verify=verify,
+                depth=depth,
             ),
             content,
             provider,
@@ -422,6 +439,7 @@ def _result_event(
         "pip_packages": list(result.pip_packages),
         "dropped_packages": list(result.dropped_packages),
         "requires_gpu": result.requires_gpu,
+        "depth": result.depth,
         "verification": (
             result.verification.to_dict() if result.verification else None
         ),
@@ -437,6 +455,7 @@ async def convert_pdf_to_notebook_stream(
     file: PdfUpload = None,
     arxiv: ArxivRef = None,
     verify: VerifyOption = None,
+    depth: DepthOption = DEFAULT_DEPTH,
 ) -> StreamingResponse:
     """Like ``/convert``, but streams progress as server-sent events.
 
@@ -460,7 +479,8 @@ async def convert_pdf_to_notebook_stream(
       or null), ``cost`` (estimated USD from ``[pricing]`` in config.toml,
       or null), ``upload_bytes``, ``pages`` (or null), ``notebook_bytes``,
       ``code_lines``, ``pip_packages``, ``dropped_packages``,
-      ``requires_gpu``, ``verification`` (null, or ``status`` ``passed``,
+      ``requires_gpu``, ``depth``, ``verification`` (null, or ``status``
+      ``passed``,
       ``failed``, ``skipped`` or ``error``, with ``message``,
       ``code_cells``, ``failed_cell``, ``error``, ``repairs``,
       ``repaired_cells``, ``elapsed`` and the repair ``usage``),
@@ -531,6 +551,7 @@ async def convert_pdf_to_notebook_stream(
                     source_name=source_name,
                     on_progress=capture,
                     verify=verify,
+                    depth=depth,
                 ),
                 content,
                 provider,

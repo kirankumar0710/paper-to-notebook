@@ -2,17 +2,52 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
-__all__ = ["NOTEBOOK_SCHEMA", "SYSTEM_PROMPT", "USER_PROMPT"]
+__all__ = [
+    "DEFAULT_DEPTH",
+    "DEPTHS",
+    "Depth",
+    "NOTEBOOK_SCHEMA",
+    "SYSTEM_PROMPT",
+    "USER_PROMPT",
+    "system_prompt",
+]
 
-SYSTEM_PROMPT = """\
+# Who the notebook is for: how much it explains compared with how much it
+# implements. Only the reader paragraph of the system prompt changes, so
+# depth works the same with every provider.
+Depth = Literal["beginner", "practitioner", "expert"]
+DEPTHS: tuple[Depth, ...] = ("beginner", "practitioner", "expert")
+DEFAULT_DEPTH: Depth = "practitioner"
+
+_READERS: dict[str, str] = {
+    "beginner": """\
+The reader knows Python and basic maths but is new to this field. Explain \
+the background the paper assumes before using it: define every term and \
+symbol, explain each equation term by term in plain words, and build \
+intuition with tiny worked examples and plots before the full method. \
+Keep each code cell short and comment it generously. Favour explanation \
+over breadth: implement the core idea in its simplest form, and leave \
+optional variants out.""",
+    "practitioner": """\
+The reader is a practitioner who wants to understand the paper's method \
+well enough to reuse it. Build the notebook around the paper's core \
+contribution rather than summarising every section.""",
+    "expert": """\
+The reader is a researcher in this field. Skip background and textbook \
+material, and keep markdown brief: focus it on what is new, the key \
+equations, and implementation choices the paper leaves open. Favour \
+implementation over explanation: implement the method completely and \
+faithfully, with clean, vectorised code, and include the paper's main \
+variants or ablations where they fit the time budget.""",
+}
+
+_SYSTEM_TEMPLATE = """\
 You turn research papers into Google Colab notebooks that teach the paper \
 by implementing it.
 
-The reader is a practitioner who wants to understand the paper's method \
-well enough to reuse it. Build the notebook around the paper's core \
-contribution rather than summarising every section.
+{reader}
 
 Write the notebook as an ordered list of markdown and code cells:
 - Start with what problem the paper solves and what its key idea is.
@@ -40,6 +75,22 @@ Do not put `pip install` commands in code cells. Instead, list in \
 Colab. Set `requires_gpu` to true only when the code needs a GPU to finish \
 in reasonable time.
 """
+
+
+def system_prompt(depth: str = DEFAULT_DEPTH) -> str:
+    """The system prompt for a notebook written for ``depth``.
+
+    Raises:
+        ValueError: If ``depth`` is not one of :data:`DEPTHS`.
+    """
+    if depth not in _READERS:
+        raise ValueError(
+            f"Unknown depth {depth!r}; use one of: {', '.join(DEPTHS)}."
+        )
+    return _SYSTEM_TEMPLATE.format(reader=_READERS[depth])
+
+
+SYSTEM_PROMPT = system_prompt(DEFAULT_DEPTH)
 
 USER_PROMPT = (
     "Create a Google Colab notebook that implements and explains the "

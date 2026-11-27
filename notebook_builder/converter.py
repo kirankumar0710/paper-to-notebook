@@ -12,7 +12,12 @@ from notebook_builder.builder import (
     split_packages,
     validate_spec,
 )
-from notebook_builder.prompt import NOTEBOOK_SCHEMA, SYSTEM_PROMPT, USER_PROMPT
+from notebook_builder.prompt import (
+    DEFAULT_DEPTH,
+    NOTEBOOK_SCHEMA,
+    USER_PROMPT,
+    system_prompt,
+)
 from notebook_builder.verify import (
     VerifyReport,
     VerifySettings,
@@ -42,6 +47,8 @@ class ConvertedNotebook:
         code_lines: Non-blank lines in the model's code cells.
         verification: The result of the optional run check, or None if
             it was not requested.
+        depth: Who the notebook was written for: ``beginner``,
+            ``practitioner`` or ``expert``.
     """
 
     title: str
@@ -52,6 +59,7 @@ class ConvertedNotebook:
     requires_gpu: bool = False
     code_lines: int = 0
     verification: VerifyReport | None = None
+    depth: str = DEFAULT_DEPTH
 
 
 def _notebook_filename(source_name: str | None, title: str) -> str:
@@ -72,6 +80,7 @@ def pdf_to_notebook(
     source_name: str | None = None,
     on_progress: ProgressCallback | None = None,
     verify: VerifySettings | None = None,
+    depth: str = DEFAULT_DEPTH,
 ) -> ConvertedNotebook:
     """Have ``provider`` read the paper and build a Colab notebook from it.
 
@@ -85,18 +94,23 @@ def pdf_to_notebook(
             while the model works and the notebook is built.
         verify: Run the notebook and let the model fix failing cells
             (see :mod:`notebook_builder.verify`). None skips the check.
+        depth: Who the notebook is for (``beginner``, ``practitioner`` or
+            ``expert``): how much it explains compared with how much it
+            implements. Changes only the system prompt.
 
     Returns:
         The notebook and its filename.
 
     Raises:
         ProviderError: If the LLM request fails.
-        ValueError: If the model's reply is not a usable notebook.
+        ValueError: If ``depth`` is unknown, or the model's reply is not a
+            usable notebook.
     """
+    system = system_prompt(depth)  # before any paid request
     spec = provider.generate_json(
         USER_PROMPT,
         schema=NOTEBOOK_SCHEMA,
-        system=SYSTEM_PROMPT,
+        system=system,
         pdf=pdf,
         on_progress=on_progress,
     )
@@ -126,6 +140,7 @@ def pdf_to_notebook(
     notebook = build_notebook(
         spec, filename=filename, note=report.note() if report else None
     )
+    notebook.metadata["paper_to_notebook"] = {"depth": depth}
     logger.info(
         "Built notebook %r with %d cells", filename, len(notebook.cells)
     )
@@ -146,4 +161,5 @@ def pdf_to_notebook(
         requires_gpu=bool(spec.get("requires_gpu")),
         code_lines=code_lines,
         verification=report,
+        depth=depth,
     )

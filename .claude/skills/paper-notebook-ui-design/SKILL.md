@@ -23,13 +23,18 @@ description: UI design guidelines for the Paper-to-Notebook dashboard (api/stati
   must use the tokens from `base.css`; do not add literal colours, radii or
   per-panel header styles. A panel's section colour is set only in
   `base.css`, never in its own CSS.
-- A new panel: add its folder, a `<link>` and an
-  `<!-- include: panels/<name>/<name>.html -->` line in `index.html`, a grid
-  area in `base.css` (desktop, tablet and mobile), a section colour (see
-  section 4), and wire it in `app.js`.
-- Layout (desktop): row 1 Configuration | Upload paper / specify link |
-  Download; row 2 LLM output (two columns) | MCP activity log; row 3
-  Metrics (full width). Tablet: two columns. Mobile: one column.
+- Layout: two tabbed panels side by side (`section.panel.tabbed`).
+  **Paper** (left, 1/3, blue): tabs Upload (default) | Download |
+  Configuration. **Activity** (right, 2/3, violet): tabs LLM output
+  (default) | MCP log | Metrics. On a desktop window at least 1001px wide
+  and 640px tall they fill the window below the header and each tab
+  scrolls inside, so the page itself never scrolls. Below 1000px they
+  stack (Paper first) and the page scrolls.
+- A new view is usually a new tab: add its folder (`<name>.html` is a
+  `div.tab-panel` with `role="tabpanel"`), a `<link>` for its CSS in
+  `index.html`, a tab button plus an include line in `paper.html` or
+  `activity.html`, and wire it in `app.js`. A whole new panel also needs a
+  grid area in `base.css` and a section colour (see section 4).
 - Run check is not in the grid. It is a side drawer (`section.panel
   .drawer`, fixed over the right edge, with the same panel frame and its
   own section colour) used only when the user ticks "Check that the
@@ -40,6 +45,10 @@ description: UI design guidelines for the Paper-to-Notebook dashboard (api/stati
   design, and only for things that float over the page.
 - Check changes visually at desktop, tablet and phone widths before
   finishing, and run `pytest` (the page tests check the panels render).
+  At desktop size (1440×900), also confirm the page does not scroll (see
+  section 7 and acceptance criterion 10), and click through a conversion:
+  a script error in `app.js` only shows up in the browser, not in
+  `pytest`.
 
 ## 1. Objective
 
@@ -83,6 +92,8 @@ Every functional section must follow the same panel structure.
 
 ### Panel heading
 
+- In the two tabbed panels the tab bar is the heading (see "Tabs" in
+  section 5); it follows the same type rules.
 - Position: Top-left corner.
 - Font weight: Bold.
 - Font size: 12px to 13px (implemented: 13px).
@@ -126,12 +137,8 @@ dashboards:
 
 | Section | Hue | Why | Background | Border | Tokens |
 |---|---|---|---|---|---|
-| Configuration | Slate | settings, neutral | #F8FAFC | #E2E8F0 | `--tint-config` / `--line-config` |
-| Upload paper / specify link | Blue | input, the primary action | #EFF6FF | #BFDBFE | `--tint-upload` / `--line-upload` |
-| Download | Green | finished results | #F0FDF4 | #BBF7D0 | `--tint-download` / `--line-download` |
-| LLM output | Violet | the AI model | #F5F3FF | #DDD6FE | `--tint-output` / `--line-output` |
-| MCP activity log | Teal | external tools, integrations | #F0FDFA | #CCFBF1 | `--tint-mcp` / `--line-mcp` |
-| Metrics | Amber | measurements, analytics | #FFFBEB | #FEF3C7 | `--tint-metrics` / `--line-metrics` |
+| Paper (Upload, Download, Configuration tabs) | Blue | input, the primary action | #EFF6FF | #BFDBFE | `--tint-paper` / `--line-paper` |
+| Activity (LLM output, MCP log, Metrics tabs) | Violet | the AI model at work | #F5F3FF | #DDD6FE | `--tint-activity` / `--line-activity` |
 | Run check | Sky | test runs of the notebook | #F0F9FF | #BAE6FD | `--tint-check` / `--line-check` |
 
 Rules:
@@ -160,33 +167,56 @@ from a problem. Use the scale only for ordered stages.)
 
 ## 5. Application Panel Structure
 
-Apply the common panel design to the following sections.
+Apply the common panel design to the following sections. They are tabs
+of two panels: Paper (Upload, Download, Configuration) and Activity (LLM
+output, MCP log, Metrics).
 
-### Configuration
+### Tabs
+- The tab bar replaces the panel title and uses the title's type style
+  (13px, bold, uppercase). The selected tab is in `--text` with an
+  `--accent` underline on the header's `--panel-line` rule; the others
+  are `--muted`.
+- Tabs follow the ARIA tabs pattern (`role="tab"`, `aria-selected`,
+  arrow keys, Home, End), via `initTabs()` in `shared.js`.
+- A tab's own actions (Refresh, Live, Clear) sit at the top-right and show
+  only while that tab is selected (`data-tab-for="<tab id>"`).
+- Badges: a count in `--accent` (new MCP events while that tab is not
+  shown) or a "!" in `--error` (a configuration problem).
+- Switching by itself is kept to clear moments: Download is selected when
+  a notebook is ready, LLM output when a conversion starts, and
+  Configuration on the first load if something is missing. New MCP events
+  only badge their tab.
+
+### Configuration (Paper tab)
 - Display provider, model, API key status, save folder, and generation
   options.
 - Keep labels and values aligned.
 - Use clear status indicators.
 - Provide Refresh at the top-right when applicable.
 
-### Upload Paper / Specify Link
+### Upload Paper / Specify Link (Paper tab, default)
 - Provide a PDF upload/drop area.
 - Provide a separate arXiv URL or ID input.
+- Notebook depth is a three-way segmented switch (Beginner / Practitioner
+  / Expert): segments on `--surface` divided by `--panel-line`, the
+  selected one filled with `--accent`, and a hint line below that
+  explains the choice.
 - Make the primary Convert to Notebook button visually prominent.
 - Clearly communicate upload and processing states.
 
-### Download
+### Download (Paper tab)
 - Display the generated notebook information.
 - Provide relevant download/open actions.
 - Show an appropriate empty state when no notebook is available.
 - Provide Refresh at the top-right.
 
-### LLM Output
+### LLM output (Activity tab, default)
 - Display generated explanations and notebook-generation output.
 - Support readable text formatting.
 - Clearly distinguish loading, completed, and error states.
+- The activity log grows to fill the tab.
 
-### MCP Activity Log
+### MCP log (Activity tab)
 - Display MCP server activity in chronological order.
 - Show server connection status.
 - Display tool calls, arguments, execution status, and results where
@@ -205,7 +235,12 @@ Apply the common panel design to the following sections.
 - The model's fixes appear between runs with an amber (or red if the
   repair failed) left rule.
 
-### Metrics
+### Metrics (Activity tab)
+- Tokens & cost and Time are always shown;
+  Paper, Notebook and Since the server started are under a "More details"
+  `<details>` that remembers whether it was open.
+- Word values (Depth, Run check, GPU) use `.v.word`, smaller than
+  numbers, so they fit narrow tiles without breaking mid-word.
 - Display token usage, cost, execution time, PDF information, notebook
   information, and GPU information.
 - Organize related metrics into logical groups.
@@ -223,8 +258,19 @@ Apply the common panel design to the following sections.
 
 ## 7. Responsive Design
 
-- Desktop: Use a multi-column dashboard layout.
-- Tablet: Reduce the number of columns while preserving panel separation.
+- **Desktop: everything fits one screen.** On a laptop window (checked at
+  1440×900) the whole dashboard is visible without scrolling the page:
+  the inputs (Upload, depth, run check) and the progress (LLM output) are
+  on screen together. Long content scrolls inside its tab, never the
+  page. This is a hard rule:
+  - Add new views as a **tab** of Paper or Activity, or as a drawer or
+    overlay like Run check. Do not add a grid row or a panel below the
+    two panels.
+  - Keep tab content compact enough to be useful at 900px tall; put
+    secondary details in a collapsible `<details>` (as Metrics does).
+  - The fixed-height mode applies from 1001px wide and 640px tall; below
+    that the panels stack and the page scrolls.
+- Tablet (≤ 1000px): stack the two panels, Paper first.
 - Mobile: Stack panels vertically.
 - Ensure buttons, inputs, and log entries remain usable at all screen
   sizes.
@@ -244,7 +290,8 @@ Apply the common panel design to the following sections.
 
 The implementation is complete when:
 
-1. Every major functional section is enclosed in a rounded panel.
+1. Every major functional section is in a rounded panel, as a panel of
+   its own or as a tab of the Paper or Activity panel.
 2. Each panel uses its own soft section colour (tint and matching border)
    from the table in section 4; content inside sits on white.
 3. Every heading is bold and positioned at the top-left.
@@ -254,6 +301,10 @@ The implementation is complete when:
 7. The dashboard looks clean and professional.
 8. Existing application functionality remains unchanged.
 9. The layout works on desktop, tablet, and mobile.
+10. At 1440×900 the page does not scroll
+    (`document.documentElement.scrollHeight <= innerHeight`), before,
+    during and after a conversion, with every tab and the Run check
+    drawer in use.
 
 **Primary objective:** Consistency across the entire application. Every
 panel should look like part of the same product, not an independently

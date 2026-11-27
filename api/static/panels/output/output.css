@@ -1,5 +1,7 @@
-/* 3. LLM output */
-#output-panel { display: flex; flex-direction: column; }
+/* LLM output (a tab of the Activity panel). The activity log grows to fill the
+   tab when the panel is taller than its content (Metrics sits beside it). */
+#output-body:not([hidden]) { flex: 1; display: flex; flex-direction: column;
+  min-height: 0; }
 #steps { display: flex; gap: 6px; margin: 0 0 12px; padding: 0;
   list-style: none; flex-wrap: wrap; }
 #steps li { font-size: 0.78rem; padding: 3px 9px; border-radius: 999px;
@@ -17,8 +19,8 @@
   margin: 0; padding: 10px 12px; list-style: none; border-radius: var(--radius-sm);
   background: var(--surface);
   border: 1px solid var(--panel-line); font-family: var(--mono); font-size: 0.8rem;
-  height: 14em; overflow-y: auto; overscroll-behavior: contain;
-  resize: vertical;
+  flex: 1 0 14em; min-height: 14em; overflow-y: auto;
+  overscroll-behavior: contain; resize: vertical;
 }
 #log li { display: flex; gap: 10px; }
 #log time { color: var(--muted); flex: none; }

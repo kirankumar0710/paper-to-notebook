@@ -12,13 +12,42 @@ const ARXIV_REF = new RegExp(String.raw`^(?:arxiv:\s*)?(?:(?:https?://)?` +
 
 export const looksLikeArxiv = (text) => ARXIV_REF.test(text.trim());
 
+// What each notebook depth means, shown under the depth switch.
+const DEPTH_HINTS = {
+  beginner: "Explains the background and every equation step by step, " +
+    "with short, well-commented code.",
+  practitioner: "Balanced: explains the key ideas, then implements the " +
+    "method.",
+  expert: "Brief notes on what is new; a fuller, faithful implementation.",
+};
+const DEPTH_KEY = "p2n.depth";  // remembered in this browser
+
 // onChoose(file) runs when a file is picked. onSubmit(source) on Convert,
 // with {kind: "file", file} or {kind: "arxiv", ref}, plus verify: whether
-// to check that the notebook runs.
+// to check that the notebook runs, and depth: "beginner", "practitioner"
+// or "expert".
 export function initUpload({ onChoose, onSubmit }) {
   const input = $("file"), drop = $("drop"), submit = $("submit");
   const arxiv = $("arxiv"), verify = $("verify");
   const verifyHint = $("verify-hint").innerHTML;
+  const depthInputs = [...document.querySelectorAll("input[name=depth]")];
+
+  const depth = () =>
+    (depthInputs.find((i) => i.checked) || {}).value || "practitioner";
+  function showDepth() {
+    $("depth-hint").textContent = DEPTH_HINTS[depth()];
+  }
+  try {
+    const saved = localStorage.getItem(DEPTH_KEY);
+    const input = depthInputs.find((i) => i.value === saved);
+    if (input) input.checked = true;
+  } catch (_) { /* storage unavailable: keep the default */ }
+  showDepth();
+  depthInputs.forEach((input) => input.addEventListener("change", () => {
+    showDepth();
+    try { localStorage.setItem(DEPTH_KEY, depth()); }
+    catch (_) { /* not remembered; fine */ }
+  }));
   let maxMb = 15;
   let busy = false;
 
@@ -65,7 +94,7 @@ export function initUpload({ onChoose, onSubmit }) {
     $("arxiv-hint").textContent = bad
       ? "Use an arXiv link like https://arxiv.org/abs/1706.03762, " +
         "or just the ID."
-      : "Looked up with the arXiv MCP server; see the MCP activity log.";
+      : "Looked up with the arXiv MCP server; see the MCP log tab.";
     $("arxiv-hint").classList.toggle("error", bad);
     arxiv.setAttribute("aria-invalid", String(bad));
   }
@@ -97,7 +126,9 @@ export function initUpload({ onChoose, onSubmit }) {
   $("form").addEventListener("submit", (event) => {
     event.preventDefault();
     const source = current();
-    if (source) onSubmit({ ...source, verify: verify.checked });
+    if (source) {
+      onSubmit({ ...source, verify: verify.checked, depth: depth() });
+    }
   });
 
   return {
@@ -121,6 +152,7 @@ export function initUpload({ onChoose, onSubmit }) {
     },
     setBusy(value) {
       busy = value;
+      depthInputs.forEach((input) => { input.disabled = value; });
       update();
     },
   };

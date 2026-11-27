@@ -1,0 +1,26 @@
+<!-- Activity: what happens during a conversion, as tabs. LLM output
+     (default), MCP log and Metrics. Each tab's content and script live in
+     panels/output/, panels/mcp/ and panels/metrics/. -->
+<section class="panel tabbed" id="activity-panel">
+  <div class="panel-head">
+    <div class="tabs" role="tablist" aria-label="Activity"
+      id="activity-tabs">
+      <button class="tab" role="tab" type="button" id="tab-output"
+        aria-controls="output-panel" aria-selected="true">LLM output</button>
+      <button class="tab" role="tab" type="button" id="tab-mcp"
+        aria-controls="mcp-panel" aria-selected="false" tabindex="-1">MCP log
+        <span class="tab-badge" id="mcp-badge" hidden></span></button>
+      <button class="tab" role="tab" type="button" id="tab-metrics"
+        aria-controls="metrics-panel" aria-selected="false"
+        tabindex="-1">Metrics</button>
+    </div>
+    <div class="panel-actions" data-tab-for="tab-mcp" hidden>
+      <span class="live" id="mcp-live" title="Polling GET /api/mcp/events">
+        <i aria-hidden="true"></i><span id="mcp-live-text">Live</span></span>
+      <button class="link" id="mcp-clear" type="button">Clear</button>
+    </div>
+  </div>
+  <!-- include: panels/output/output.html -->
+  <!-- include: panels/mcp/mcp.html -->
+  <!-- include: panels/metrics/metrics.html -->
+</section>

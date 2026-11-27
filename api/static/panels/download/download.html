@@ -1,9 +1,6 @@
-<!-- 5. Download -->
-<section class="panel" id="download-panel" aria-labelledby="download-h">
-  <div class="panel-head">
-    <h2 id="download-h">Download</h2>
-    <button class="link" id="files-refresh" type="button">Refresh</button>
-  </div>
+<!-- Paper panel, tab "Download". Its Refresh is in the panel header. -->
+<div class="tab-panel" id="download-panel" role="tabpanel"
+  aria-labelledby="tab-download" hidden>
   <div id="current" hidden>
     <a id="download-link" class="download" href="#">Download notebook</a>
     <p id="saved-path"></p>
@@ -14,4 +11,4 @@
   <p class="empty" id="files-empty">No notebooks yet.</p>
   <footer class="note">Open the <code>.ipynb</code> in Colab with
     File → Upload notebook.</footer>
-</section>
+</div>

@@ -1,4 +1,5 @@
-/* 4. Metrics */
+/* Metrics: tokens, cost and time always shown; paper, notebook and
+   session totals under "More details". */
 #metrics-panel { container-type: inline-size; }
 #metrics-panel .label.first { margin-top: 0; }
 
@@ -20,6 +21,10 @@
 .tile .v { font-size: 1.3rem; font-weight: 600;
   font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .tile .v.warn { color: var(--warn); }
+/* Word values (Depth, Run check) are smaller than numbers so they fit a
+   narrow tile without breaking mid-word. */
+.tile .v.word { font-size: 1.05rem; overflow-wrap: normal;
+  word-break: normal; hyphens: auto; }
 .tile .d { font-size: 0.75rem; color: var(--muted); min-height: 1.1em;
   overflow-wrap: anywhere; }
 
@@ -54,3 +59,12 @@
 #metrics-note, #metrics-served { margin: 10px 0 0; font-size: 0.8rem;
   color: var(--muted); overflow-wrap: anywhere; }
 #metrics-served.warn { color: var(--warn); }
+
+/* More details (collapsible) */
+details.more { margin-top: 14px; border-top: 1px solid var(--panel-line);
+  padding-top: 10px; }
+details.more > summary { cursor: pointer; font-size: 0.85rem;
+  font-weight: 600; color: var(--accent); }
+details.more > summary:hover { color: var(--accent-hover); }
+details.more > summary .sub { display: inline; font-weight: 400;
+  margin-left: 4px; }

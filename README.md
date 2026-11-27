@@ -32,9 +32,9 @@ MCP server:
 
 | Part | Folder | What it does |
 |------|--------|--------------|
-| Dashboard | `api/static/` | Six panels (Configuration, Upload paper / specify link, Download, LLM output, MCP activity log, Metrics) as plain HTML, CSS and JavaScript modules. `app.js` connects them. |
+| Dashboard | `api/static/` | Two tabbed panels: Paper (Upload, Download, Configuration) and Activity (LLM output, MCP log, Metrics) as plain HTML, CSS and JavaScript modules. `app.js` connects them. |
 | API routes | `api/routes/` | One module per panel. They check input, start the conversion, stream progress, serve files and MCP events, and hand the real work to the packages below. |
-| arXiv source | `sources/` | Turns an arXiv link or ID into a PDF: asks the arXiv MCP server (`get_abstract`) for the paper, then downloads the PDF from arxiv.org. Logs every step for the MCP activity log. |
+| arXiv source | `sources/` | Turns an arXiv link or ID into a PDF: asks the arXiv MCP server (`get_abstract`) for the paper, then downloads the PDF from arxiv.org. Logs every step for the MCP log tab. |
 | Conversion | `notebook_builder/` | Sends the PDF with a prompt and a JSON schema to the provider, then turns the JSON reply into a Colab `.ipynb`. |
 | LLM providers | `providers/` | One class per vendor (Anthropic, Gemini, OpenAI) behind a common interface. Handles API keys, retries and progress updates. `factory.py` picks one from `PROVIDER`. |
 
@@ -47,7 +47,7 @@ keys masked.
 1. The Upload panel posts the PDF, or an arXiv link, to `/convert/stream`.
 2. For an arXiv link, `sources/arxiv.py` starts the arXiv MCP server, calls
    its `get_abstract` tool for the title and PDF URL, and downloads the PDF
-   from arxiv.org. Each step appears in the MCP activity log. From here on
+   from arxiv.org. Each step appears in the MCP log tab. From here on
    both kinds of input are handled the same way.
 3. `convert.py` checks the PDF (PDF header, 15 MB limit) and counts its
    pages.
@@ -143,18 +143,33 @@ PDF or paste an arXiv link, and click **Convert to notebook**; the
 `.ipynb` downloads when it is ready. Stop the server with `Ctrl+C`. After
 changing an environment variable, restart it.
 
-The page is a dashboard laid out in three rows: Configuration, Upload paper
-/ specify link and Download; then LLM output with the MCP activity log on
-its right; then Metrics.
+The page is a dashboard with two tabbed panels side by side, sized to fit
+the window so nothing needs scrolling on a laptop screen (on narrow
+screens they stack):
 
-1. **Configuration**: provider, model, whether the API key was found (and
+**Paper** (left):
+
+1. **Upload** (shown by default): pick or drop a PDF, or paste an arXiv
+   link or ID (see [arXiv papers](#arxiv-papers-mcp)), choose the notebook
+   depth, and start the conversion.
+2. **Download** (selected automatically when the notebook is ready): the
+   new notebook, the run check result, and every notebook generated since
+   the server started.
+3. **Configuration**: provider, model, whether the API key was found (and
    in which variable; the key itself is never shown) and the save folder.
-2. **Upload paper / specify link**: pick or drop a PDF, or paste an arXiv
-   link or ID (see [arXiv papers](#arxiv-papers-mcp)), and start the
-   conversion.
-3. **LLM output**: live stages, an activity log and the model's
-   reasoning summary.
-4. **Metrics**:
+   If something is missing, the tab shows a red "!" and opens on load.
+
+**Activity** (right):
+
+4. **LLM output** (shown by default): live stages, an activity log and
+   the model's reasoning summary.
+5. **MCP log**: every step of an arXiv lookup: the MCP server starting,
+   each tool call with its arguments, each result with its timing, the
+   PDF download and any error. It polls `GET /api/mcp/events?after=<id>`.
+   New events that arrive while another tab is shown appear as a count on
+   the tab.
+6. **Metrics**: tokens, cost and time; the paper, notebook and
+   since-the-server-started figures are under **More details**.
    - tokens and an **estimated cost** (from `[pricing.models]` in `config.toml`;
      fast mode is priced at `fast_multiplier`). Add a line for any model
      you use that isn't listed, such as your Gemini or OpenAI model.
@@ -166,12 +181,6 @@ its right; then Metrics.
      size, cells, lines of code, extra packages (and any unsafe ones
      dropped) and whether it needs a GPU
    - totals since the server started (`GET /api/metrics/session`)
-5. **Download**: the new notebook, plus every notebook generated since the
-   server started.
-6. **MCP activity log**: every step of an arXiv lookup: the MCP server
-   starting, each tool call with its arguments, each result with its
-   timing, the PDF download and any error. It polls
-   `GET /api/mcp/events?after=<id>`.
 
 These are backed by `GET /api/config` and `GET /api/notebooks` (download
 one with `GET /api/notebooks/{id}`; only notebooks this server generated
@@ -225,6 +234,23 @@ timeout = 60                                       # seconds for the lookup
 For example, `command = ["uvx", "arxiv-mcp-server"]` runs it with uv
 instead. The MCP SDK starts the server with a minimal environment, so
 your LLM API keys are not passed to it.
+
+## Notebook depth
+
+**Notebook depth** on the Upload panel (or `depth=` on `/convert` and
+`/convert/stream`) sets who the notebook is written for, and so how much
+it explains compared with how much it implements:
+
+| Depth | Notebook |
+|-------|----------|
+| `beginner` | Explains the background the paper assumes, defines every symbol, walks through each equation term by term, and builds intuition with tiny examples; short, well-commented code for the core idea only |
+| `practitioner` (default) | Balanced: the key ideas in markdown, then the method implemented around the paper's core contribution |
+| `expert` | Brief notes on what is new and the key equations; a complete, faithful, vectorised implementation, with the paper's main variants or ablations where they fit |
+
+Depth only changes the system prompt, so it works the same with every
+provider. The choice is saved in the notebook's metadata
+(`paper_to_notebook.depth`), shown in the Metrics panel, and remembered by
+the browser for next time.
 
 ## Check that the notebook runs (optional)
 
@@ -397,13 +423,14 @@ The tests use fake LLM clients, so they make no API calls and need no keys.
 │   │   ├── convert.py      # 2–4 Upload, LLM output, Metrics: /convert…
 │   │   ├── metrics.py      # 4 Metrics: /api/metrics/session
 │   │   ├── download.py     # 5 Download: /api/notebooks
-│   │   └── mcp.py          # MCP activity log: /api/mcp/events
+│   │   └── mcp.py          # MCP log tab: /api/mcp/events
 │   └── static/
 │       ├── index.html      # Page shell; one include line per panel
 │       ├── base.css        # Theme, grid layout, shared styles
 │       ├── shared.js       # Formatting, SSE reader, scroll helpers
 │       ├── app.js          # Wires the panels together, runs a conversion
-│       └── panels/<name>/  # config, upload, output, metrics, download, mcp,
+│       └── panels/<name>/  # paper (tabs: upload, download, config),
+│                           #   activity (tabs: output, mcp, metrics),
 │                           #   check (Run check drawer):
 │                           #   <name>.html, <name>.css, <name>.js
 ├── notebook_builder/

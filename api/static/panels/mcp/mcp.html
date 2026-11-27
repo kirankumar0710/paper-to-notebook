@@ -1,13 +1,7 @@
-<!-- MCP activity log -->
-<section class="panel" id="mcp-panel" aria-labelledby="mcp-h">
-  <div class="panel-head">
-    <h2 id="mcp-h">MCP activity log</h2>
-    <div class="panel-actions">
-      <span class="live" id="mcp-live" title="Polling GET /api/mcp/events">
-        <i aria-hidden="true"></i><span id="mcp-live-text">Live</span></span>
-      <button class="link" id="mcp-clear" type="button">Clear</button>
-    </div>
-  </div>
+<!-- Activity panel, tab "MCP log". Its Live indicator and Clear button are in
+     the Activity panel header (panels/activity/activity.html). -->
+<div class="tab-panel" id="mcp-panel" role="tabpanel"
+  aria-labelledby="tab-mcp" hidden>
   <p class="mcp-server" id="mcp-server">arXiv MCP server · started over
     stdio for each lookup</p>
   <ol class="mcp-events" id="mcp-events" aria-live="polite"></ol>
@@ -15,4 +9,4 @@
     under <b>Upload paper / specify link</b> and click
     <b>Convert to notebook</b>: the server start, each tool call with its
     arguments, and each result will show here.</p>
-</section>
+</div>

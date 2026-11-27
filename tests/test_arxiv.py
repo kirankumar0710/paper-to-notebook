@@ -521,7 +521,7 @@ class TestEndpoints:
         # So an updated dashboard never mixes new HTML with cached CSS.
         response = client.get("/static/base.css")
         assert response.headers["cache-control"] == "no-cache"
-        assert '"output output mcp"' in response.text
+        assert 'grid-template-areas: "paper activity"' in response.text
         again = client.get(
             "/static/base.css",
             headers={"If-None-Match": response.headers["etag"]},

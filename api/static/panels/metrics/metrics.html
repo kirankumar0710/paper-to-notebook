@@ -1,8 +1,6 @@
-<!-- 4. Metrics -->
-<section class="panel" id="metrics-panel" aria-labelledby="metrics-h">
-  <div class="panel-head">
-    <h2 id="metrics-h">Metrics</h2>
-  </div>
+<!-- Activity panel, tab "Metrics": tokens, cost and time; details collapsible -->
+<div class="tab-panel" id="metrics-panel" role="tabpanel"
+  aria-labelledby="tab-metrics" hidden>
 
   <p class="label first">Tokens &amp; cost</p>
   <div class="tiles">
@@ -35,6 +33,12 @@
       <ul class="stage-legend" id="m-stage-legend"></ul></div>
   </div>
 
+  <p id="metrics-note">Metrics appear when a conversion runs.</p>
+  <p id="metrics-served" hidden></p>
+
+  <details class="more" id="metrics-more">
+    <summary>More details <span class="sub">paper, notebook, since the
+      server started</span></summary>
   <div class="groups">
   <div class="group group-paper">
   <p class="label">Paper</p>
@@ -63,16 +67,16 @@
       <div class="v" id="m-pkgs">—</div>
       <div class="d" id="m-pkgs-d"></div></div>
     <div class="tile"><div class="k">GPU</div>
-      <div class="v" id="m-gpu">—</div><div class="d"></div></div>
+      <div class="v word" id="m-gpu">—</div><div class="d"></div></div>
+    <div class="tile"><div class="k">Depth</div>
+      <div class="v word" id="m-depth">—</div><div class="d"></div></div>
     <div class="tile"><div class="k">Run check</div>
-      <div class="v" id="m-check">—</div>
+      <div class="v word" id="m-check">—</div>
       <div class="d" id="m-check-d"></div></div>
   </div>
   </div>
   </div>
 
-  <p id="metrics-note">Metrics appear when a conversion runs.</p>
-  <p id="metrics-served" hidden></p>
 
   <p class="label">Since the server started</p>
   <div class="tiles">
@@ -86,4 +90,5 @@
       <div class="v" id="s-cost">—</div>
       <div class="d" id="s-cost-d"></div></div>
   </div>
-</section>
+  </details>
+</div>

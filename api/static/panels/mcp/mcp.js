@@ -1,6 +1,6 @@
-// MCP activity log: polls GET /api/mcp/events for what the server did with
-// the arXiv MCP server (start, tool calls, results, the PDF download,
-// errors) and lists it, newest at the bottom.
+// MCP log (a tab of the Activity panel): polls GET /api/mcp/events for what
+// the server did with the arXiv MCP server (start, tool calls, results,
+// the PDF download, errors) and lists it, newest at the bottom.
 import { $, atBottom, clock, el, follow } from "../../shared.js";
 
 const KIND_LABELS = {
@@ -10,8 +10,11 @@ const KIND_LABELS = {
 const IDLE_MS = 3000;     // poll interval when nothing is running
 const ACTIVE_MS = 700;    // while a conversion is running
 
-export function initMcp() {
+// onEvents(count) runs when new events arrive after the first load, so
+// the Activity panel can badge its MCP tab.
+export function initMcp({ onEvents } = {}) {
   const list = $("mcp-events");
+  let loaded = false;     // the first poll only loads past events
   let after = 0;          // last event id received
   let lastRun = null;
   let active = false;
@@ -52,6 +55,8 @@ export function initMcp() {
       after = Math.max(after, data.last_id);
       $("mcp-empty").hidden = list.children.length > 0;
       if (fresh.length) follow(list, stick);
+      if (fresh.length && loaded && onEvents) onEvents(fresh.length);
+      loaded = true;
       setLive(active ? "active" : "", active ? "Polling" : "Live");
     } catch (_) {
       setLive("off", "Offline");

@@ -1,0 +1,28 @@
+<!-- Paper: the inputs and the result, as tabs. Upload (default),
+     Download (selected when a notebook is ready) and Configuration
+     (selected on load if something is missing). Each tab's content and
+     script live in panels/upload/, panels/download/ and panels/config/. -->
+<section class="panel tabbed" id="paper-panel">
+  <div class="panel-head">
+    <div class="tabs" role="tablist" aria-label="Paper" id="paper-tabs">
+      <button class="tab" role="tab" type="button" id="tab-upload"
+        aria-controls="upload-panel" aria-selected="true">Upload</button>
+      <button class="tab" role="tab" type="button" id="tab-download"
+        aria-controls="download-panel" aria-selected="false"
+        tabindex="-1">Download</button>
+      <button class="tab" role="tab" type="button" id="tab-config"
+        aria-controls="config-panel" aria-selected="false"
+        tabindex="-1">Configuration
+        <span class="tab-badge alert" id="config-badge" hidden></span></button>
+    </div>
+    <div class="panel-actions">
+      <button class="link" id="files-refresh" type="button"
+        data-tab-for="tab-download" hidden>Refresh</button>
+      <button class="link" id="config-refresh" type="button"
+        data-tab-for="tab-config" hidden>Refresh</button>
+    </div>
+  </div>
+  <!-- include: panels/upload/upload.html -->
+  <!-- include: panels/download/download.html -->
+  <!-- include: panels/config/config.html -->
+</section>

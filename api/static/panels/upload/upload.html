@@ -1,8 +1,6 @@
-<!-- 2. Upload paper / specify link -->
-<section class="panel" id="upload-panel" aria-labelledby="upload-h">
-  <div class="panel-head">
-    <h2 id="upload-h">Upload paper / specify link</h2>
-  </div>
+<!-- Paper panel, tab "Upload" -->
+<div class="tab-panel" id="upload-panel" role="tabpanel"
+  aria-labelledby="tab-upload">
   <form id="form">
     <label class="drop" id="drop" for="file">
       <strong>Choose a PDF</strong> or drag it here
@@ -17,7 +15,21 @@
       inputmode="url" autocomplete="off" spellcheck="false"
       placeholder="https://arxiv.org/abs/1706.03762 or 1706.03762">
     <span class="hint" id="arxiv-hint">Looked up with the arXiv MCP server;
-      see the MCP activity log.</span>
+      see the MCP log tab.</span>
+
+    <fieldset class="depth">
+      <legend class="field-label">Notebook depth</legend>
+      <div class="segmented">
+        <label><input type="radio" name="depth" value="beginner">
+          <span>Beginner</span></label>
+        <label><input type="radio" name="depth" value="practitioner" checked>
+          <span>Practitioner</span></label>
+        <label><input type="radio" name="depth" value="expert">
+          <span>Expert</span></label>
+      </div>
+      <span class="hint" id="depth-hint">Balanced: explains the key ideas,
+        then implements the method.</span>
+    </fieldset>
 
     <label class="check" id="verify-row">
       <input type="checkbox" id="verify" name="verify">
@@ -31,4 +43,4 @@
       Convert to notebook</button>
   </form>
   <p id="status" role="status" aria-live="polite"></p>
-</section>
+</div>

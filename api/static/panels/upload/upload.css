@@ -24,6 +24,28 @@ button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
 #status.error { color: var(--error); }
 #status.ok { color: var(--ok); }
 
+/* Notebook depth: a three-way segmented switch */
+fieldset.depth { margin: 14px 0 0; padding: 0; border: 0; min-width: 0; }
+fieldset.depth legend { padding: 0; }
+.segmented { display: flex; border: 1px solid var(--panel-line);
+  border-radius: var(--radius-sm); background: var(--surface);
+  overflow: hidden; }
+.segmented label { flex: 1; min-width: 0; position: relative; }
+.segmented label + label { border-left: 1px solid var(--panel-line); }
+.segmented input { position: absolute; opacity: 0; width: 1px;
+  height: 1px; }
+.segmented span { display: block; padding: 8px 6px; text-align: center;
+  font-size: 0.88rem; color: var(--text); cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.segmented label:hover span { color: var(--accent); }
+.segmented input:checked + span { background: var(--accent);
+  color: var(--accent-text); font-weight: 600; }
+.segmented input:focus-visible + span { outline: 2px solid var(--accent);
+  outline-offset: -4px; }
+.segmented input:checked:focus-visible + span {
+  outline-color: var(--accent-text); }
+.segmented input:disabled + span { opacity: 0.5; cursor: not-allowed; }
+
 /* Check that the notebook runs */
 label.check { display: flex; align-items: flex-start; gap: 8px;
   margin-top: 14px; font-size: 0.9rem; cursor: pointer; }

@@ -57,3 +57,49 @@ export async function readEvents(response, onEvent) {
     }
   }
 }
+
+// Tabs in a panel header (ARIA tabs pattern). `tablist` holds buttons with
+// role="tab" whose aria-controls names their tab panel. Elements in the
+// same panel with data-tab-for="<tab id>" (e.g. a tab's own Refresh in the
+// header) show only while that tab is selected. Arrow keys, Home and End
+// move between tabs. onShow(tabId) runs after each switch.
+export function initTabs(tablist, { onShow } = {}) {
+  const tabs = [...tablist.querySelectorAll('[role="tab"]')];
+  const panel = tablist.closest("section");
+
+  function show(id, { focus = false } = {}) {
+    tabs.forEach((tab) => {
+      const selected = tab.id === id;
+      tab.setAttribute("aria-selected", String(selected));
+      tab.tabIndex = selected ? 0 : -1;
+      $(tab.getAttribute("aria-controls")).hidden = !selected;
+      if (selected && focus) tab.focus();
+    });
+    panel.querySelectorAll("[data-tab-for]").forEach((node) => {
+      node.hidden = node.dataset.tabFor !== id;
+    });
+    if (onShow) onShow(id);
+  }
+
+  tabs.forEach((tab, index) => {
+    tab.addEventListener("click", () => show(tab.id));
+    tab.addEventListener("keydown", (event) => {
+      const moves = { ArrowRight: index + 1, ArrowLeft: index - 1,
+        Home: 0, End: tabs.length - 1 };
+      if (!(event.key in moves)) return;
+      event.preventDefault();
+      show(tabs[(moves[event.key] + tabs.length) % tabs.length].id,
+        { focus: true });
+    });
+  });
+  const selected = () =>
+    tabs.find((tab) => tab.getAttribute("aria-selected") === "true").id;
+  show(selected());
+  return { show, selected };
+}
+
+// Shows `text` in a tab's badge, or hides the badge when text is empty.
+export function setBadge(id, text) {
+  $(id).hidden = !text;
+  $(id).textContent = text || "";
+}

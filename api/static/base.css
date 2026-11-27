@@ -29,12 +29,8 @@
   /* Section colours: a soft tint per panel (Tailwind 50 shade) and its
      border (100/200 shade). They identify the section; they never mean
      status. */
-  --tint-config: #f8fafc;   --line-config: #e2e8f0;   /* slate: settings */
-  --tint-upload: #eff6ff;   --line-upload: #bfdbfe;   /* blue: input */
-  --tint-download: #f0fdf4; --line-download: #bbf7d0; /* green: results */
-  --tint-output: #f5f3ff;   --line-output: #ddd6fe;   /* violet: the model */
-  --tint-mcp: #f0fdfa;      --line-mcp: #ccfbf1;      /* teal: integrations */
-  --tint-metrics: #fffbeb;  --line-metrics: #fef3c7;  /* amber: measurements */
+  --tint-paper: #eff6ff;    --line-paper: #bfdbfe;    /* blue: input */
+  --tint-activity: #f5f3ff; --line-activity: #ddd6fe; /* violet: the model */
   --tint-check: #f0f9ff;    --line-check: #bae6fd;    /* sky: test runs */
   /* Spacing and shape */
   --radius: 12px;          /* panels */
@@ -69,53 +65,41 @@ body > header p { margin: 2px 0 0; color: var(--muted); font-size: 0.9rem; }
 body > header nav a { color: var(--accent); font-size: 0.9rem;
   margin-left: 14px; }
 
-/* Dashboard grid: where each panel sits.
-   Row 1: Configuration, Upload paper / specify link, Download.
-   Row 2: LLM output, with the MCP activity log on its right.
-   Row 3: Metrics, full width.
+/* Dashboard grid: two tabbed panels side by side.
+   Left (1/3): Paper, tabs Upload | Download | Configuration.
+   Right (2/3): Activity, tabs LLM output | MCP log | Metrics.
+   On a desktop window tall enough, the two panels fill the window below
+   the header and each tab scrolls inside, so nothing needs page scrolling.
+   Below 1000px they stack and the page scrolls as usual.
    Run check is not in the grid: it is a side drawer over the right edge
    (panels/check/check.css). */
 .grid {
-  max-width: 1440px; margin: 0 auto; padding: 12px 16px 32px;
+  max-width: 1440px; width: 100%; margin: 0 auto; padding: 12px 16px 16px;
   display: grid; gap: var(--gap);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-areas:
-    "config upload download"
-    "output output mcp"
-    "metrics metrics metrics";
+  grid-template-columns: minmax(360px, 1fr) minmax(0, 2fr);
+  grid-template-areas: "paper activity";
 }
-@media (max-width: 1100px) {
-  .grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-areas:
-      "config   upload"
-      "download download"
-      "output   output"
-      "mcp      mcp"
-      "metrics  metrics";
-  }
+@media (min-width: 1001px) and (min-height: 640px) {
+  body { height: 100vh; height: 100dvh; display: flex;
+    flex-direction: column; }
+  body > header { flex: none; width: 100%; }
+  .grid { flex: 1; min-height: 0; }
+  section.panel.tabbed { min-height: 0; }
+  .tab-panel { overflow-y: auto; overscroll-behavior: contain; }
 }
-@media (max-width: 720px) {
+@media (max-width: 1000px) {
   .grid {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "config" "upload" "download" "output" "mcp"
-      "metrics";
+    grid-template-areas: "paper" "activity";
+    padding-bottom: 32px;
   }
 }
-#config-panel { grid-area: config; }
-#upload-panel { grid-area: upload; }
-#download-panel { grid-area: download; }
-#output-panel { grid-area: output; }
-#mcp-panel { grid-area: mcp; }
-#metrics-panel { grid-area: metrics; }
+#paper-panel { grid-area: paper; }
+#activity-panel { grid-area: activity; }
 
 /* Section colours: each panel picks its tint; everything else is shared. */
-#config-panel { --panel-bg: var(--tint-config); --panel-line: var(--line-config); }
-#upload-panel { --panel-bg: var(--tint-upload); --panel-line: var(--line-upload); }
-#download-panel { --panel-bg: var(--tint-download); --panel-line: var(--line-download); }
-#output-panel { --panel-bg: var(--tint-output); --panel-line: var(--line-output); }
-#mcp-panel { --panel-bg: var(--tint-mcp); --panel-line: var(--line-mcp); }
-#metrics-panel { --panel-bg: var(--tint-metrics); --panel-line: var(--line-metrics); }
+#paper-panel { --panel-bg: var(--tint-paper); --panel-line: var(--line-paper); }
+#activity-panel { --panel-bg: var(--tint-activity); --panel-line: var(--line-activity); }
 #check-panel { --panel-bg: var(--tint-check); --panel-line: var(--line-check); }
 
 /* Panel frame: the same for every panel */
@@ -148,3 +132,34 @@ button.link:hover { color: var(--accent-hover); text-decoration: underline; }
 code, .mono { font-family: var(--mono); font-size: 0.85em; }
 .label { margin: 14px 0 6px; font-size: 0.78rem; font-weight: 600;
   color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* Tabbed panels: the tab bar replaces the panel title and uses its type
+   style. The selected tab is in --text with an --accent underline. */
+section.panel.tabbed { display: flex; flex-direction: column; }
+.panel.tabbed > .panel-head { border-bottom: 1px solid var(--panel-line);
+  margin: -4px calc(-1 * var(--pad)) 12px; padding: 0 var(--pad); }
+.tabs { display: flex; gap: 2px; min-width: 0; overflow-x: auto;
+  scrollbar-width: none; }
+button.tab {
+  position: relative; border: 0; background: none; cursor: pointer;
+  padding: 8px 10px 10px; margin: 0; flex: none;
+  font: inherit; font-size: 13px; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--muted);
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+button.tab:first-child { padding-left: 0; }
+button.tab:hover { color: var(--text); }
+button.tab[aria-selected="true"] { color: var(--text); }
+button.tab[aria-selected="true"]::after {
+  content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px;
+  height: 2px; border-radius: 1px; background: var(--accent);
+}
+button.tab:first-child[aria-selected="true"]::after { left: 0; }
+button.tab:focus-visible { outline-offset: -2px; }
+/* A count (new MCP events) or an alert (configuration problem) */
+.tab-badge { min-width: 18px; padding: 0 5px; border-radius: 9px;
+  background: var(--accent); color: var(--accent-text); font-size: 11px;
+  line-height: 18px; text-align: center; letter-spacing: 0; }
+.tab-badge.alert { background: var(--error); }
+.tab-panel { flex: 1; display: flex; flex-direction: column;
+  min-height: 0; min-width: 0; }

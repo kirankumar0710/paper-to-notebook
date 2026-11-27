@@ -1,5 +1,6 @@
-// 4. Metrics: tokens, cost, output budget, time per stage, output speed,
-// paper and notebook facts, and totals since the server started.
+// Metrics: tokens, cost, output budget, time per stage and output speed,
+// always shown; paper and notebook facts and totals since the server
+// started under "More details".
 // Per-run values come from the progress and result events of
 // POST /convert/stream; totals from GET /api/metrics/session.
 import { $, el, fmtBytes, fmtDuration, fmtInt } from "../../shared.js";
@@ -18,9 +19,11 @@ const fmtUsd = (n) => (n == null ? "—"
 
 const RUN_IDS = ["m-in", "m-out", "m-total", "m-cost", "m-budget", "m-time",
   "m-speed", "m-pages", "m-nb", "m-cells", "m-code", "m-pkgs", "m-gpu",
-  "m-check"];
+  "m-check", "m-depth"];
 const RUN_DETAIL_IDS = ["m-cost-d", "m-budget-d", "m-speed-d", "m-pages-d",
   "m-chars-d", "m-cells-d", "m-pkgs-d", "m-check-d"];
+const DEPTH_LABELS = { beginner: "Beginner", practitioner: "Practitioner",
+  expert: "Expert" };
 const CHECK_LABELS = { passed: "Passed", failed: "Failed",
   skipped: "Skipped", error: "Error" };
 
@@ -162,6 +165,7 @@ export function initMetrics() {
       dropped.length ? `${dropped.length} unsafe dropped` : "",
     ].filter(Boolean).join(" · ");
     $("m-gpu").textContent = result.requires_gpu ? "Needed" : "No";
+    $("m-depth").textContent = DEPTH_LABELS[result.depth] || "—";
     const check = result.verification;
     set("m-check", check ? CHECK_LABELS[check.status] : "Off",
       Boolean(check) && check.status !== "passed");
@@ -191,6 +195,15 @@ export function initMetrics() {
     } catch (_) { /* leave as is */ }
   }
   loadSession();
+
+  // "More details" stays open or closed as the user left it.
+  const MORE_KEY = "p2n.metrics.more";
+  try { $("metrics-more").open = localStorage.getItem(MORE_KEY) === "1"; }
+  catch (_) { /* storage unavailable: closed */ }
+  $("metrics-more").addEventListener("toggle", () => {
+    try { localStorage.setItem(MORE_KEY, $("metrics-more").open ? "1" : "0"); }
+    catch (_) { /* not remembered; fine */ }
+  });
 
   // paper: a File, or {name, size} (size unknown until an arXiv PDF
   // has been downloaded).
