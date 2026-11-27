@@ -275,7 +275,7 @@ async def convert_pdf_to_notebook(
             raise _arxiv_http_error(exc) from exc
         content, source_name = paper.pdf, paper.source_name
     else:
-        assert file is not None
+        assert file is not None  # noqa: S101 (type narrowing)
         content, source_name = await _read_pdf(file), file.filename
     started = time.monotonic()
     capture = _Capture()
@@ -401,7 +401,7 @@ async def convert_pdf_to_notebook_stream(
     arxiv_id = _check_source(file, arxiv)
     upload: bytes | None = None
     if arxiv_id is None:
-        assert file is not None
+        assert file is not None  # noqa: S101 (type narrowing)
         upload = await _read_pdf(file)
     started = time.monotonic()
     loop = asyncio.get_running_loop()
@@ -418,7 +418,7 @@ async def convert_pdf_to_notebook_stream(
     async def paper() -> tuple[bytes, str, dict[str, Any]]:
         """The PDF, its name and its source: the upload, or from arXiv."""
         if upload is not None:
-            assert file is not None
+            assert file is not None  # noqa: S101 (type narrowing)
             return upload, file.filename or "paper.pdf", _upload_source(file)
         fetched = await fetch_arxiv_paper(
             arxiv_id or "",

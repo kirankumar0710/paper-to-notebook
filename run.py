@@ -20,7 +20,9 @@ VENV_PYTHON = VENV_DIR / (
 )
 REQUIREMENTS = PROJECT_DIR / "requirements.txt"
 
-HOST = "0.0.0.0"
+# Localhost only by default. Set HOST=0.0.0.0 to accept connections from
+# other machines (e.g. inside a container).
+HOST = os.environ.get("HOST", "127.0.0.1")
 PORT = 8000
 
 
@@ -32,7 +34,7 @@ def setup_venv() -> None:
     print("🔧 First run — setting up virtual environment...")
     venv.create(VENV_DIR, with_pip=True)
     print("📦 Installing dependencies (this takes ~30 seconds)...")
-    subprocess.check_call(
+    subprocess.check_call(  # noqa: S603 (fixed, trusted args)
         [
             str(VENV_PYTHON),
             "-m",
@@ -87,7 +89,7 @@ def main() -> None:
     setup_venv()
 
     if Path(sys.executable) != VENV_PYTHON:
-        os.execv(VENV_PYTHON, [str(VENV_PYTHON), __file__])
+        os.execv(VENV_PYTHON, [str(VENV_PYTHON), __file__])  # noqa: S606
 
     report_provider()
 
