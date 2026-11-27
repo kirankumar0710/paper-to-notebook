@@ -154,7 +154,12 @@ screens they stack):
    depth, and start the conversion.
 2. **Download** (selected automatically when the notebook is ready): the
    new notebook, the run check result, and every notebook generated since
-   the server started.
+   the server started. Each one shows how it was made in one line (e.g.
+   `anthropic · claude-opus-5-5 · Expert · ✓ checked`), which opens to the
+   full recipe: source (upload or arXiv ID), provider, model and speed,
+   options, depth, run check, time, tokens and cost. The same recipe is
+   saved in the notebook's metadata (`paper_to_notebook`), never with API
+   keys.
 3. **Configuration**: provider, model, whether the API key was found (and
    in which variable; the key itself is never shown) and the save folder.
    If something is missing, the tab shows a red "!" and opens on load.
@@ -266,11 +271,14 @@ before you get it:
 2. If a cell fails or runs past `cell_timeout`, its code and error go back
    to the same LLM, which returns fixed cells. The notebook is run again,
    up to `max_repairs` times.
-3. While it runs, a **Run check** drawer slides in from the right edge. It
-   shows each run cell by cell (running, passed with its time and output,
-   or failed with the error) and each fix the model made between runs.
-   The panels on the left stay usable; **Collapse** (or Esc) folds it into
-   a tab on the right edge, with a status dot, that opens it again.
+3. A **Run check** tab appears on the right edge when you click Convert.
+   It stays collapsed while the model writes the notebook (you can open it
+   to see "Waiting for the model to write the notebook…"), then the drawer
+   slides open by itself when the check starts. It shows each run cell by
+   cell (running, passed with its time and output, or failed with the
+   error) and each fix the model made between runs. The panels on the
+   left stay usable; **Collapse** (or Esc) folds it back into the tab,
+   whose dot shows the status.
 4. The result shows under the download link, in the Metrics panel, and as
    a line in the notebook's title cell. Repair tokens count towards the
    cost.

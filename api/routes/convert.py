@@ -302,10 +302,48 @@ def _conversion_error(exc: Exception, provider: LLMProvider) -> HTTPException:
     return error
 
 
+def _recipe(
+    result: ConvertedNotebook,
+    *,
+    provider: LLMProvider,
+    capture: _Capture,
+    cost: dict[str, Any] | None,
+    source: dict[str, Any],
+    started: float,
+) -> dict[str, Any]:
+    """How a notebook was made: its inputs and the settings that produced
+    it. Saved with the notebook (Download tab and the notebook's metadata);
+    never includes API keys."""
+    served = capture.served_or_requested(provider)
+    usage = capture.total_usage(result)
+    check = result.verification
+    return {
+        "source": source,
+        "provider": provider.name,
+        "model": served["model"],
+        "speed": served["speed"],
+        "options": dict(provider.settings.options),
+        "depth": result.depth,
+        "run_check": (
+            {"status": check.status, "repairs": check.repairs}
+            if check
+            else None
+        ),
+        "elapsed": round(time.monotonic() - started, 1),
+        "total_tokens": usage.get("total_tokens") if usage else None,
+        "cost_usd": cost["total_usd"] if cost else None,
+    }
+
+
 def _finish(
-    result: ConvertedNotebook, output_dir: Path, started: float
+    result: ConvertedNotebook,
+    output_dir: Path,
+    started: float,
+    recipe: dict[str, Any],
 ) -> tuple[str, SavedNotebook | None]:
-    """Serialize the notebook, log it and save the server copy."""
+    """Record the recipe in the notebook, serialize it, log it and save the
+    server copy."""
+    result.notebook.metadata.setdefault("paper_to_notebook", {}).update(recipe)
     notebook_json = nbformat.writes(result.notebook)
     logger.info(
         "Conversion done in %.1fs: returning %r (%d cells, %.1f KB)",
@@ -315,7 +353,7 @@ def _finish(
         len(notebook_json) / 1024,
     )
     saved = save_notebook(
-        output_dir, result.filename, result.title, notebook_json
+        output_dir, result.filename, result.title, notebook_json, recipe
     )
     return notebook_json, saved
 
@@ -357,9 +395,11 @@ async def convert_pdf_to_notebook(
         except ArxivError as exc:
             raise _arxiv_http_error(exc) from exc
         content, source_name = paper.pdf, paper.source_name
+        source = paper.describe()
     else:
         assert file is not None  # noqa: S101 (type narrowing)
         content, source_name = await _read_pdf(file), file.filename
+        source = _upload_source(file)
     started = time.monotonic()
     capture = _Capture()
     try:
@@ -379,8 +419,17 @@ async def convert_pdf_to_notebook(
         record_failure()
         raise _conversion_error(exc, provider) from exc
 
-    record_success(capture.total_usage(result), capture.cost(provider, result))
-    notebook_json, saved = _finish(result, output_dir, started)
+    cost = capture.cost(provider, result)
+    record_success(capture.total_usage(result), cost)
+    recipe = _recipe(
+        result,
+        provider=provider,
+        capture=capture,
+        cost=cost,
+        source=source,
+        started=started,
+    )
+    notebook_json, saved = _finish(result, output_dir, started, recipe)
     headers = {
         "Content-Disposition": f'attachment; filename="{result.filename}"'
     }
@@ -568,7 +617,15 @@ async def convert_pdf_to_notebook_stream(
             return
         cost = capture.cost(provider, result)
         session = record_success(capture.total_usage(result), cost)
-        notebook_json, saved = _finish(result, output_dir, started)
+        recipe = _recipe(
+            result,
+            provider=provider,
+            capture=capture,
+            cost=cost,
+            source=source,
+            started=started,
+        )
+        notebook_json, saved = _finish(result, output_dir, started, recipe)
         event = _result_event(
             result,
             notebook_json,

@@ -149,7 +149,7 @@
       <tbody>
         <tr><td><strong>Paper</strong> panel</td><td><code>paper/</code></td><td>Left, 1/3 width: tabs Upload (default), Download, Configuration. Selects Download when a notebook is ready and Configuration on the first load if something is missing (with a "!" badge).</td></tr>
         <tr><td>&nbsp;&nbsp;Upload tab</td><td><code>upload/</code></td><td>PDF drop zone, arXiv field, notebook depth (beginner / practitioner / expert), "Check that the notebook runs", Convert</td></tr>
-        <tr><td>&nbsp;&nbsp;Download tab</td><td><code>download/</code></td><td>Link to the new notebook, the run check result, notebooks from this session (<code>GET /api/notebooks</code>)</td></tr>
+        <tr><td>&nbsp;&nbsp;Download tab</td><td><code>download/</code></td><td>Link to the new notebook, the run check result, notebooks from this session (<code>GET /api/notebooks</code>), each with a one-line recipe (provider, model, depth, run check) that opens to the full settings it was made with</td></tr>
         <tr><td>&nbsp;&nbsp;Configuration tab</td><td><code>config/</code></td><td>Provider, model, API key status, save folder (<code>GET /api/config</code>)</td></tr>
         <tr><td><strong>Activity</strong> panel</td><td><code>activity/</code></td><td>Right, 2/3 width: tabs LLM output (default), MCP log, Metrics. Selects LLM output when a conversion starts and badges new MCP events while the MCP log tab is hidden.</td></tr>
         <tr><td>&nbsp;&nbsp;LLM output tab</td><td><code>output/</code></td><td>Stages, activity log, the model's reasoning summary</td></tr>
@@ -231,7 +231,7 @@ export function initExample() {
     <p>Run check is the only part of the UI that is not in the grid.</p>
     <ul>
       <li>It is a <code>section.panel.drawer</code>, fixed over the right edge of the page, with the same panel frame and its own section colour. It has no backdrop, so the panels on the left stay usable.</li>
-      <li>It is used only when "Check that the notebook runs" is ticked. It slides in when the check starts; <strong>Collapse</strong> (or Escape) folds it into a vertical tab on the right edge, whose dot shows the status. On phones it opens full width.</li>
+      <li>It is used only when "Check that the notebook runs" is ticked. On Convert it starts collapsed, as a vertical tab on the right edge with a grey dot and "Waiting for the model to write the notebook…" (the user can open it early). It slides open by itself once, on the first <code>check</code> event, and stays closed if the user collapses it (<strong>Collapse</strong> or Escape). The tab's dot shows the status. On phones it opens full width.</li>
       <li>It is drawn from the <code>check</code> events in <code>progress</code> updates: <code>setup</code>, <code>plan</code> (one per run, listing the cells), <code>cell</code> (<code>running</code>, <code>ok</code> with time and output, <code>failed</code> with the error) and <code>repair</code> (<code>running</code>, <code>fixed</code>, <code>failed</code>). See <code>verify_notebook</code> in <code>notebook_builder/verify.py</code>.</li>
     </ul>
   </section>

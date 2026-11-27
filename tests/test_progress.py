@@ -396,6 +396,43 @@ class TestStreamEndpoint:
         assert download.text == result["notebook"]
         assert "paper.ipynb" in download.headers["content-disposition"]
 
+    def test_saved_notebook_records_its_recipe(self, client):
+        test_client = client()
+        response = test_client.post(
+            "/convert/stream",
+            files={"file": ("paper.pdf", b"%PDF-1.7 fake", "application/pdf")},
+            data={"depth": "expert"},
+        )
+        result = _parse_sse(response.text)[-1][1]
+        recipe = test_client.get("/api/notebooks").json()[0]["recipe"]
+        assert recipe["source"] == {"type": "upload", "filename": "paper.pdf"}
+        assert (recipe["provider"], recipe["model"]) == ("fake", "fake-model")
+        assert recipe["depth"] == "expert"
+        assert recipe["run_check"] is None
+        assert recipe["options"] == {}
+        assert recipe["elapsed"] >= 0
+        assert recipe["total_tokens"] is None
+        assert recipe["cost_usd"] is None
+        # No secrets in what is stored or shown.
+        assert "key" not in json.dumps(recipe).lower()
+        # The downloaded notebook carries the same recipe.
+        metadata = json.loads(result["notebook"])["metadata"]
+        assert metadata["paper_to_notebook"]["depth"] == "expert"
+        assert metadata["paper_to_notebook"]["source"] == recipe["source"]
+
+    def test_convert_endpoint_records_recipe(self, client):
+        test_client = client()
+        response = test_client.post(
+            "/convert",
+            files={"file": ("paper.pdf", b"%PDF-1.7 fake", "application/pdf")},
+        )
+        assert response.status_code == 200
+        recipe = test_client.get("/api/notebooks").json()[0]["recipe"]
+        assert recipe["source"]["filename"] == "paper.pdf"
+        assert recipe["depth"] == "practitioner"
+        meta = json.loads(response.text)["metadata"]["paper_to_notebook"]
+        assert meta["provider"] == "fake"
+
     def test_unknown_notebook_is_404(self, client):
         response = client().get("/api/notebooks/../../etc/passwd")
         assert response.status_code == 404

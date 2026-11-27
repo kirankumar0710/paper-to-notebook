@@ -701,7 +701,8 @@ class TestEndpoints:
     def test_stream_result_has_verification(self, client):
         from test_progress import _parse_sse
 
-        response = self._post(client(), verify="true")
+        test_client = client()
+        response = self._post(test_client, verify="true")
         events = _parse_sse(response.text)
         stages = [d["stage"] for e, d in events if e == "progress"]
         assert "verifying" in stages
@@ -709,6 +710,8 @@ class TestEndpoints:
         kind, result = events[-1]
         assert kind == "result"
         assert result["verification"]["status"] == "passed"
+        recipe = test_client.get("/api/notebooks").json()[0]["recipe"]
+        assert recipe["run_check"] == {"status": "passed", "repairs": 0}
 
     def test_stream_without_verify(self, client):
         from test_progress import _parse_sse

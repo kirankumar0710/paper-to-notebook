@@ -38,9 +38,13 @@ description: UI design guidelines for the Paper-to-Notebook dashboard (api/stati
 - Run check is not in the grid. It is a side drawer (`section.panel
   .drawer`, fixed over the right edge, with the same panel frame and its
   own section colour) used only when the user ticks "Check that the
-  notebook runs". It slides in when a check starts, leaves the panels on
-  the left visible and usable (no backdrop), and collapses to a vertical
-  tab on the right edge (Collapse at the top-right, or Escape). On phones
+  notebook runs". On Convert it starts collapsed as a vertical tab on
+  the right edge (grey dot, "Waiting for the model to write the
+  notebook…"), because nothing runs until the notebook is written; the
+  user can open it early from the tab. It slides open by itself once,
+  when the first check event arrives, and stays closed if the user then
+  collapses it (Collapse at the top-right, or Escape). It leaves the
+  panels on the left visible and usable (no backdrop). On phones
   it opens full width. `--overlay-shadow` is the only shadow in the
   design, and only for things that float over the page.
 - Check changes visually at desktop, tablet and phone widths before
@@ -206,6 +210,11 @@ output, MCP log, Metrics).
 
 ### Download (Paper tab)
 - Display the generated notebook information.
+- Under each notebook, show how it was made: one muted, single-line
+  summary (`provider · model · depth · run check`, ellipsised) that is a
+  `<details>` opening to a small `dl` on `--surface` with the full recipe
+  (source, model, options, depth, run check, time, tokens, cost). Keep it
+  closed by default so the list stays compact.
 - Provide relevant download/open actions.
 - Show an appropriate empty state when no notebook is available.
 - Provide Refresh at the top-right.
@@ -228,7 +237,10 @@ output, MCP log, Metrics).
 ### Run check (side drawer)
 - Used only while the run check is used; drawer and tab are hidden
   otherwise. Collapse sits at the top-right like other panel actions; the
-  collapsed tab shows a status dot in the status colours.
+  collapsed tab shows a status dot: grey while waiting or skipped, blue
+  pulsing while running, then green, amber or red for the result.
+- Opens by itself only when the check actually starts, never on Convert,
+  and at most once per conversion.
 - One collapsible block per run, cell by cell: a status dot (grey
   pending, blue running, green passed, red failed), the cell's first line
   of code, its time, and its output or error in a collapsible box.

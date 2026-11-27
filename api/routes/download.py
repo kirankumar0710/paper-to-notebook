@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -30,13 +30,22 @@ router = APIRouter()
 
 @dataclass(frozen=True)
 class SavedNotebook:
-    """A notebook this server generated and saved in the output folder."""
+    """A notebook this server generated and saved in the output folder.
+
+    Attributes:
+        recipe: How it was made, for the Download tab: ``source``,
+            ``provider``, ``model``, ``speed``, ``options``, ``depth``,
+            ``run_check`` (null, or ``status`` and ``repairs``),
+            ``elapsed``, ``total_tokens`` and ``cost_usd``. Never
+            includes API keys.
+    """
 
     id: str
     filename: str
     path: Path
     title: str
     created: float  # Unix time
+    recipe: dict[str, Any] = field(default_factory=dict)
 
     @property
     def download_url(self) -> str:
@@ -53,6 +62,7 @@ class SavedNotebook:
             "size": self.path.stat().st_size if exists else None,
             "exists": exists,
             "download_url": self.download_url,
+            "recipe": self.recipe,
         }
 
 
@@ -61,7 +71,11 @@ _saved_notebooks: dict[str, SavedNotebook] = {}
 
 
 def save_notebook(
-    directory: Path, filename: str, title: str, notebook_json: str
+    directory: Path,
+    filename: str,
+    title: str,
+    notebook_json: str,
+    recipe: dict[str, Any] | None = None,
 ) -> SavedNotebook | None:
     """Save the notebook on the server and remember it for this panel.
 
@@ -80,6 +94,7 @@ def save_notebook(
         path=path,
         title=title,
         created=time.time(),
+        recipe=recipe or {},
     )
     _saved_notebooks[saved.id] = saved
     return saved
@@ -87,7 +102,9 @@ def save_notebook(
 
 @router.get("/api/notebooks")
 async def list_notebooks() -> list[dict[str, Any]]:
-    """Notebooks generated since the server started, newest first."""
+    """Notebooks generated since the server started, newest first, each
+    with the ``recipe`` it was made with (source, model, options, depth,
+    run check, time, tokens and cost)."""
     recent = list(_saved_notebooks.values())[-MAX_LISTED_NOTEBOOKS:]
     return [saved.to_dict() for saved in reversed(recent)]
 

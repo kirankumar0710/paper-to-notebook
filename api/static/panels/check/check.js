@@ -1,15 +1,23 @@
 // Run check: a side drawer, used while "Check that the notebook runs" is
 // ticked. Draws each run of the notebook cell by cell, with the model's
 // fixes between runs, from the `check` events in the progress updates of
-// POST /convert/stream (see notebook_builder/verify.py). It slides in
-// when a check starts and collapses to a tab on the right edge (Collapse
-// button or Escape); the tab opens it again.
+// POST /convert/stream (see notebook_builder/verify.py).
+//
+// When Convert is clicked it starts collapsed, as a tab on the right edge
+// ("Waiting for the model to write the notebook…"), since nothing runs
+// until the notebook is written. It slides open by itself once, when the
+// first check event arrives; the user can open it earlier from the tab,
+// or close it at any time (Collapse button or Escape).
 import { $, el } from "../../shared.js";
 
-const RESULT_KIND = { passed: "ok", failed: "warn", error: "error" };
+// Status kinds: "" (running, blue pulse), "idle" (waiting or skipped,
+// grey), "ok", "warn" or "error".
+const RESULT_KIND = { passed: "ok", failed: "warn", error: "error",
+  skipped: "idle" };
 
 export function initCheck() {
   let run = null;  // {box, items, note, attempt}
+  let opened = false;  // opened by itself for this conversion yet
   const drawer = $("check-panel"), tab = $("check-tab");
 
   const isOpen = () => drawer.classList.contains("open");
@@ -23,22 +31,29 @@ export function initCheck() {
     if (focus) (open ? $("check-collapse") : tab).focus();
   }
 
-  // Used for this conversion or not: shows or removes drawer and tab.
+  // Used for this conversion or not. When used, it starts collapsed: only
+  // the tab shows until the check begins.
   function setUsed(used) {
     drawer.hidden = !used;
-    if (!used) {
-      drawer.classList.remove("open");
-      tab.hidden = true;
-      return;
-    }
+    drawer.classList.remove("open");
+    tab.hidden = !used;
+    tab.setAttribute("aria-expanded", "false");
+  }
+
+  // The check has begun: slide open, once per conversion. If the user
+  // opened it already, or closes it later, this leaves it alone.
+  function openOnce() {
+    if (opened) return;
+    opened = true;
+    if (isOpen()) return;
     // Let the browser draw it off-screen first, so it slides in.
     requestAnimationFrame(() => requestAnimationFrame(() => setOpen(true)));
   }
 
-  // kind: "" (running), "ok", "warn" or "error"; also colours the tab.
+  // kind: see RESULT_KIND above; also colours the tab's dot.
   function setStatus(text, kind = "") {
     $("check-status").textContent = text;
-    $("check-status").className = kind;
+    $("check-status").className = kind === "idle" ? "" : kind;
     $("check-tab-dot").className = `dot ${kind || "running"}`;
     tab.title = `Run check: ${text}`;
   }
@@ -141,16 +156,18 @@ export function initCheck() {
     // enabled: the run check was requested for this conversion.
     start(enabled) {
       run = null;
+      opened = false;
       $("check-runs").replaceChildren();
       $("check-attempt").textContent = "";
       $("check-setup").hidden = true;
-      setStatus("Waiting for the model to write the notebook…");
+      setStatus("Waiting for the model to write the notebook…", "idle");
       setUsed(enabled);
     },
 
     progress(update) {
       const check = update.check;
       if (!check || drawer.hidden) return;
+      openOnce();
       if (check.type === "setup") {
         $("check-setup").textContent = check.message;
         $("check-setup").hidden = false;
