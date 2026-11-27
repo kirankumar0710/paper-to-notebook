@@ -7,6 +7,11 @@ a.download {
 a.download:hover { background: var(--accent-hover); }
 #saved-path { margin: 8px 0 0; font-size: 0.82rem; color: var(--muted);
   overflow-wrap: anywhere; }
+#verify-result { margin: 6px 0 0; font-size: 0.82rem; color: var(--muted);
+  overflow-wrap: anywhere; }
+#verify-result.ok { color: var(--ok); }
+#verify-result.warn { color: var(--warn); }
+#verify-result.error { color: var(--error); }
 ul.files { list-style: none; margin: 0; padding: 0; max-height: 15em;
   overflow-y: auto; overscroll-behavior: contain; }
 ul.files li { display: flex; align-items: center; gap: 10px;

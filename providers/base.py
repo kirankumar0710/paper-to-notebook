@@ -110,6 +110,8 @@ class Progress:
             provider has no speeds), ``model_fallback`` (a fallback model
             answered) and ``speed_fallback`` (fast mode fell back to
             standard).
+        check: A structured run-check event (see
+            :mod:`notebook_builder.verify`), for the Run check panel.
     """
 
     stage: str
@@ -120,6 +122,7 @@ class Progress:
     thinking_delta: str | None = None
     usage: dict[str, int] | None = None
     served: dict[str, Any] | None = None
+    check: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -131,6 +134,7 @@ class Progress:
             "thinking_delta": self.thinking_delta,
             "usage": self.usage,
             "served": self.served,
+            "check": self.check,
         }
 
 

@@ -24,6 +24,11 @@ in a few minutes.
 - Run the code cells top to bottom without errors: define everything \
 before it is used, and do not rely on files that are not downloaded in \
 the notebook.
+- An earlier cell already defines `QUICK_RUN = False`; do not define it \
+again. When `QUICK_RUN` is True, the notebook must finish in about a \
+minute on a CPU: use a tiny slice of the data and very few epochs or \
+iterations, e.g. `epochs = 1 if QUICK_RUN else 20`. When it is False, run \
+the full experiment.
 - Where it helps understanding, plot results with matplotlib.
 - When the notebook's numbers cannot match the paper (smaller data, \
 fewer steps), say so plainly rather than implying the paper's results \

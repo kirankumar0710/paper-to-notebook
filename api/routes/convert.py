@@ -27,6 +27,7 @@ from fastapi import (
     File,
     Form,
     HTTPException,
+    Request,
     UploadFile,
     status,
 )
@@ -45,6 +46,11 @@ from api.settings import (
     SAVED_PATH_HEADER,
 )
 from notebook_builder.converter import ConvertedNotebook, pdf_to_notebook
+from notebook_builder.verify import (
+    VerifySettings,
+    load_verify_settings,
+    verify_allowed,
+)
 from providers import LLMProvider, ProviderError
 from providers.base import Progress, ProgressCallback
 from sources.arxiv import ArxivError, fetch_arxiv_paper, parse_arxiv_ref
@@ -90,6 +96,48 @@ ArxivRef = Annotated[
     ),
 ]
 
+VERIFY_HEADER = "X-Notebook-Verification"
+
+
+def get_verify_settings(
+    request: Request,
+    verify: Annotated[
+        bool | None,
+        Form(
+            description=(
+                "Run the notebook with QUICK_RUN = True and let the model "
+                "fix failing cells. Omit to use ``[verify] default``."
+            ),
+        ),
+    ] = None,
+) -> VerifySettings | None:
+    """The ``[verify]`` settings if the run check should happen, else None.
+
+    Raises:
+        HTTPException: 403 if the check was asked for by a client that is
+            not on this machine and ``[verify] allow_remote`` is false.
+    """
+    settings = load_verify_settings()
+    wanted = settings.default if verify is None else verify
+    if not wanted:
+        return None
+    host = request.client.host if request.client else None
+    if verify_allowed(host, settings):
+        return settings
+    if verify is None:
+        return None  # only the default asked for it
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail=(
+            "Checking that the notebook runs executes LLM-written code on "
+            "the server, so it is only available from this machine "
+            "(localhost). Set [verify] allow_remote = true to allow it."
+        ),
+    )
+
+
+VerifyOption = Annotated[VerifySettings | None, Depends(get_verify_settings)]
+
 # Running conversions. Keeping a reference stops them being garbage
 # collected; they finish (and save the notebook) even if the client leaves.
 _background_tasks: set[asyncio.Task[None]] = set()
@@ -121,11 +169,25 @@ class _Capture:
             "speed_fallback": False,
         }
 
-    def cost(self, provider: LLMProvider) -> dict[str, Any] | None:
+    def total_usage(
+        self, result: ConvertedNotebook | None = None
+    ) -> dict[str, int] | None:
+        """Tokens for the notebook plus any repair requests."""
+        usage = dict(self.usage)
+        report = result.verification if result else None
+        for key, value in ((report.usage if report else None) or {}).items():
+            usage[key] = usage.get(key, 0) + value
+        return usage or None
+
+    def cost(
+        self,
+        provider: LLMProvider,
+        result: ConvertedNotebook | None = None,
+    ) -> dict[str, Any] | None:
         """Estimated cost, priced at the model and speed that served it."""
         served = self.served_or_requested(provider)
         return estimate_cost(
-            served["model"], self.usage or None, speed=served["speed"]
+            served["model"], self.total_usage(result), speed=served["speed"]
         )
 
 
@@ -252,6 +314,7 @@ async def convert_pdf_to_notebook(
     output_dir: Annotated[Path, Depends(get_output_dir)],
     file: PdfUpload = None,
     arxiv: ArxivRef = None,
+    verify: VerifyOption = None,
 ) -> Response:
     """Upload a paper PDF, or give an arXiv ID or link, and download a
     Google Colab notebook (``.ipynb``).
@@ -260,6 +323,10 @@ async def convert_pdf_to_notebook(
     returned as ``my_paper.ipynb``), or after the arXiv ID and title.
     An arXiv paper is looked up through the arXiv MCP server and its PDF
     downloaded from arxiv.org.
+
+    With ``verify=true`` the notebook is run with ``QUICK_RUN = True``
+    before it is returned, and the model fixes cells that fail; the
+    ``X-Notebook-Verification`` header gives the result.
 
     The LLM reads the PDF directly, so layout, equations and figures are
     taken into account. Expect a conversion to take a minute or more; use
@@ -283,7 +350,10 @@ async def convert_pdf_to_notebook(
         # The SDK calls block, so run them off the event loop.
         result = await run_in_threadpool(
             partial(
-                pdf_to_notebook, source_name=source_name, on_progress=capture
+                pdf_to_notebook,
+                source_name=source_name,
+                on_progress=capture,
+                verify=verify,
             ),
             content,
             provider,
@@ -292,13 +362,15 @@ async def convert_pdf_to_notebook(
         record_failure()
         raise _conversion_error(exc, provider) from exc
 
-    record_success(capture.usage or None, capture.cost(provider))
+    record_success(capture.total_usage(result), capture.cost(provider, result))
     notebook_json, saved = _finish(result, output_dir, started)
     headers = {
         "Content-Disposition": f'attachment; filename="{result.filename}"'
     }
     if saved is not None:
         headers[SAVED_PATH_HEADER] = str(saved.path)
+    if result.verification is not None:
+        headers[VERIFY_HEADER] = result.verification.status
     return Response(
         content=notebook_json, media_type=IPYNB_MEDIA_TYPE, headers=headers
     )
@@ -325,7 +397,7 @@ def _result_event(
 ) -> dict[str, Any]:
     """The ``result`` event: the notebook plus the dashboard's metrics."""
     kinds = [cell.cell_type for cell in result.notebook.cells]
-    usage = capture.usage
+    usage = capture.total_usage(result)
     return {
         "filename": result.filename,
         "title": result.title,
@@ -350,6 +422,9 @@ def _result_event(
         "pip_packages": list(result.pip_packages),
         "dropped_packages": list(result.dropped_packages),
         "requires_gpu": result.requires_gpu,
+        "verification": (
+            result.verification.to_dict() if result.verification else None
+        ),
         "session": session,
         "notebook": notebook_json,
     }
@@ -361,6 +436,7 @@ async def convert_pdf_to_notebook_stream(
     output_dir: Annotated[Path, Depends(get_output_dir)],
     file: PdfUpload = None,
     arxiv: ArxivRef = None,
+    verify: VerifyOption = None,
 ) -> StreamingResponse:
     """Like ``/convert``, but streams progress as server-sent events.
 
@@ -369,7 +445,8 @@ async def convert_pdf_to_notebook_stream(
     - ``progress``: ``stage`` (``uploaded``, ``fetching`` while an arXiv
       paper is looked up and downloaded, ``waiting``, ``thinking``,
       ``writing``,
-      ``retrying``, ``building``, ``done``), ``message``, ``elapsed``
+      ``retrying``, ``verifying`` and ``repairing`` (only with
+      ``verify``), ``building``, ``done``), ``message``, ``elapsed``
       seconds, ``output_chars``, while Claude thinks a ``thinking``
       summary excerpt and ``thinking_delta`` (the new summary text since
       the previous event), and on ``done`` the token ``usage`` if known.
@@ -383,7 +460,11 @@ async def convert_pdf_to_notebook_stream(
       or null), ``cost`` (estimated USD from ``[pricing]`` in config.toml,
       or null), ``upload_bytes``, ``pages`` (or null), ``notebook_bytes``,
       ``code_lines``, ``pip_packages``, ``dropped_packages``,
-      ``requires_gpu``, ``source`` (``type`` ``upload`` with
+      ``requires_gpu``, ``verification`` (null, or ``status`` ``passed``,
+      ``failed``, ``skipped`` or ``error``, with ``message``,
+      ``code_cells``, ``failed_cell``, ``error``, ``repairs``,
+      ``repaired_cells``, ``elapsed`` and the repair ``usage``),
+      ``source`` (``type`` ``upload`` with
       ``filename``, or ``arxiv`` with ``paper_id``, ``title``,
       ``authors``, ``published``, ``abs_url`` and ``pdf_url``),
       ``session`` (totals since the server started, as
@@ -449,6 +530,7 @@ async def convert_pdf_to_notebook_stream(
                     pdf_to_notebook,
                     source_name=source_name,
                     on_progress=capture,
+                    verify=verify,
                 ),
                 content,
                 provider,
@@ -463,8 +545,8 @@ async def convert_pdf_to_notebook_stream(
                 )
             )
             return
-        cost = capture.cost(provider)
-        session = record_success(capture.usage or None, cost)
+        cost = capture.cost(provider, result)
+        session = record_success(capture.total_usage(result), cost)
         notebook_json, saved = _finish(result, output_dir, started)
         event = _result_event(
             result,

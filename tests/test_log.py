@@ -135,7 +135,7 @@ class TestWhatIsLogged:
         assert "Dropped unsafe pip package specs: ['bad; rm -rf /']" in (
             messages
         )
-        assert "Built notebook 'paper.ipynb' with 4 cells" in messages
+        assert "Built notebook 'paper.ipynb' with 5 cells" in messages
 
     def test_key_never_logged_in_full(self, caplog, monkeypatch):
         monkeypatch.setenv("ANTHROPIC_API_KEY", SECRET)

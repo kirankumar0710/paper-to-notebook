@@ -7,8 +7,17 @@ from pathlib import PurePath
 
 from nbformat import NotebookNode
 
-from notebook_builder.builder import build_notebook, split_packages
+from notebook_builder.builder import (
+    build_notebook,
+    split_packages,
+    validate_spec,
+)
 from notebook_builder.prompt import NOTEBOOK_SCHEMA, SYSTEM_PROMPT, USER_PROMPT
+from notebook_builder.verify import (
+    VerifyReport,
+    VerifySettings,
+    verify_notebook,
+)
 from providers.base import LLMProvider, Progress, ProgressCallback
 from util.log import get_logger
 from util.text_utils import sanitize_filename
@@ -31,6 +40,8 @@ class ConvertedNotebook:
             removed because they were not plain package names.
         requires_gpu: Whether the notebook asks Colab for a GPU.
         code_lines: Non-blank lines in the model's code cells.
+        verification: The result of the optional run check, or None if
+            it was not requested.
     """
 
     title: str
@@ -40,6 +51,7 @@ class ConvertedNotebook:
     dropped_packages: tuple[str, ...] = ()
     requires_gpu: bool = False
     code_lines: int = 0
+    verification: VerifyReport | None = None
 
 
 def _notebook_filename(source_name: str | None, title: str) -> str:
@@ -59,6 +71,7 @@ def pdf_to_notebook(
     *,
     source_name: str | None = None,
     on_progress: ProgressCallback | None = None,
+    verify: VerifySettings | None = None,
 ) -> ConvertedNotebook:
     """Have ``provider`` read the paper and build a Colab notebook from it.
 
@@ -70,6 +83,8 @@ def pdf_to_notebook(
             it, the paper's title is used.
         on_progress: Called with :class:`~providers.base.Progress` updates
             while the model works and the notebook is built.
+        verify: Run the notebook and let the model fix failing cells
+            (see :mod:`notebook_builder.verify`). None skips the check.
 
     Returns:
         The notebook and its filename.
@@ -85,8 +100,6 @@ def pdf_to_notebook(
         pdf=pdf,
         on_progress=on_progress,
     )
-    if on_progress is not None:
-        on_progress(Progress("building", "Building the notebook…"))
     title = str(spec.get("title", "")).strip()
     cells = spec.get("cells") or []
     kinds = [c.get("cell_type") for c in cells if isinstance(c, dict)]
@@ -100,8 +113,19 @@ def pdf_to_notebook(
         spec.get("pip_packages"),
         spec.get("requires_gpu"),
     )
+    report: VerifyReport | None = None
+    if verify is not None:
+        validate_spec(spec)  # before running any of it
+        spec, report = verify_notebook(
+            spec, provider, verify, on_progress=on_progress
+        )
+        cells = spec.get("cells") or []
+    if on_progress is not None:
+        on_progress(Progress("building", "Building the notebook…"))
     filename = _notebook_filename(source_name, title)
-    notebook = build_notebook(spec, filename=filename)
+    notebook = build_notebook(
+        spec, filename=filename, note=report.note() if report else None
+    )
     logger.info(
         "Built notebook %r with %d cells", filename, len(notebook.cells)
     )
@@ -121,4 +145,5 @@ def pdf_to_notebook(
         dropped_packages=tuple(dropped),
         requires_gpu=bool(spec.get("requires_gpu")),
         code_lines=code_lines,
+        verification=report,
     )

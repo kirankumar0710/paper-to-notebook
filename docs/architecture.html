@@ -96,6 +96,8 @@
   .chip code { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
   .gt { color: var(--muted); font-family: var(--font-mono); }
   .keynote { font-size: 14px; color: var(--muted); }
+  .back { font-size: 14px; color: var(--accent); text-decoration: none; }
+  .back:hover, .back:focus-visible { text-decoration: underline; }
   /* Contents */
   .toc { display: grid; gap: 8px; }
   .toc ol { margin: 0; padding-left: 22px; display: grid; gap: 4px; font-size: 16px; }
@@ -147,6 +149,7 @@
 
 <div class="page">
   <header>
+    <a class="back" href="index.html">← Docs</a>
     <p class="eyebrow">paper-to-notebook · dev-ver-5.0</p>
     <h1>How the pieces fit together</h1>
     <p class="lede">A PDF goes in through the dashboard, one LLM call turns it into a notebook spec, and the server builds, saves and streams back a Colab <code>.ipynb</code>. Below: which subsystems exist, who calls whom, and the order of events in one conversion.</p>

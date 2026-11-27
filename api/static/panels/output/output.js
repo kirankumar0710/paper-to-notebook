@@ -3,9 +3,13 @@
 import { $, atBottom, clock, el, fmtBytes, fmtDuration, follow }
   from "../../shared.js";
 
-const STEPS = ["uploaded", "waiting", "thinking", "writing", "building"];
-// Fetching an arXiv paper is part of the first step, "Paper".
-const STEP_OF = { retrying: "waiting", fetching: "uploaded" };
+const STEPS = ["uploaded", "waiting", "thinking", "writing", "verifying",
+  "building"];
+// Fetching an arXiv paper is part of the first step, "Paper"; repairs are
+// part of the optional "Checking" step.
+const STEP_OF = { retrying: "waiting", fetching: "uploaded",
+  repairing: "verifying" };
+const VERIFY_KIND = { passed: "ok", failed: "error" };
 
 export function initOutput() {
   let lastLogStage = null;
@@ -35,7 +39,9 @@ export function initOutput() {
 
   return {
     // source: {kind: "file", name, size} or {kind: "arxiv", ref}.
-    start(source) {
+    // options.verify: the run check was requested.
+    start(source, options = {}) {
+      $("step-verifying").hidden = !options.verify;
       $("output-empty").hidden = true;
       $("output-body").hidden = false;
       $("log").replaceChildren();
@@ -88,6 +94,8 @@ export function initOutput() {
       $("stage-text").textContent = text;
       $("stage").className = "ok";
       log(text, "ok");
+      const check = result.verification;
+      if (check) log(check.message, VERIFY_KIND[check.status] || "");
     },
 
     fail(message) {

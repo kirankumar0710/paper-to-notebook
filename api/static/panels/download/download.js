@@ -2,6 +2,17 @@
 // server started (GET /api/notebooks).
 import { $, clock, el, fmtBytes } from "../../shared.js";
 
+// How each run check result reads under the download link.
+const VERIFY_TEXT = {
+  passed: (v) => `✓ Checked: all ${v.code_cells} code cells ran` +
+    (v.repairs ? ` after ${v.repairs} automatic ` +
+      `fix${v.repairs === 1 ? "" : "es"}` : ""),
+  failed: (v) => `⚠ Checked: ${v.message} Review it before running.`,
+  skipped: (v) => v.message,
+  error: (v) => v.message,
+};
+const VERIFY_KIND = { passed: "ok", failed: "warn", error: "error" };
+
 export function initDownload() {
   async function refresh() {
     let files = [];
@@ -37,6 +48,12 @@ export function initDownload() {
       $("saved-path").textContent = result.saved_path
         ? `Also saved to ${result.saved_path}`
         : "Could not save a server copy.";
+      const check = result.verification, note = $("verify-result");
+      note.hidden = !check;
+      if (check) {
+        note.textContent = VERIFY_TEXT[check.status](check);
+        note.className = VERIFY_KIND[check.status] || "";
+      }
       $("current").hidden = false;
       link.click();
       refresh();

@@ -11,7 +11,14 @@ from nbformat.v4 import new_code_cell, new_markdown_cell, new_notebook
 
 from util.log import get_logger
 
-__all__ = ["build_notebook", "split_packages"]
+__all__ = [
+    "QUICK_RUN_TAG",
+    "build_notebook",
+    "pip_install_source",
+    "quick_run_source",
+    "split_packages",
+    "validate_spec",
+]
 
 logger = get_logger(__name__)
 
@@ -19,6 +26,21 @@ logger = get_logger(__name__)
 # else (spaces, quotes, ";", "&&") is dropped so the install cell cannot
 # run arbitrary shell commands.
 _PACKAGE_SPEC = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._\-\[\],<>=!~*+]*$")
+
+# Every notebook gets this switch near the top; the prompt tells the model
+# to scale data and training down when it is True. The verify step runs
+# the notebook with it set to True.
+QUICK_RUN_TAG = "quick-run"
+
+
+def quick_run_source(value: bool) -> str:
+    """The source of the ``QUICK_RUN`` cell."""
+    return (
+        "# QUICK_RUN = True runs a fast smoke test (tiny data, few steps).\n"
+        "# Leave it False to run the full experiment.\n"
+        f"QUICK_RUN = {value}"
+    )
+
 
 DISCLAIMER = (
     "*Generated from the research paper by an LLM. "
@@ -38,18 +60,17 @@ def split_packages(packages: list[Any]) -> tuple[list[str], list[str]]:
     return valid, dropped
 
 
-def _pip_install_cell(packages: list[str]) -> NotebookNode | None:
-    """Build a ``!pip install`` cell for valid, de-duplicated packages."""
+def pip_install_source(packages: list[Any]) -> str | None:
+    """The ``!pip install`` line for valid, de-duplicated packages."""
     valid, dropped = split_packages(packages)
     if dropped:
         logger.warning("Dropped unsafe pip package specs: %s", dropped)
     if not valid:
         return None
-    args = " ".join(shlex.quote(p) for p in valid)
-    return new_code_cell(f"!pip install -q {args}")
+    return "!pip install -q " + " ".join(shlex.quote(p) for p in valid)
 
 
-def _validate(spec: dict[str, Any]) -> None:
+def validate_spec(spec: dict[str, Any]) -> None:
     """Check the parts of the model's reply that the builder relies on."""
     if not isinstance(spec.get("title"), str):
         raise ValueError("Notebook spec is missing a 'title' string.")
@@ -67,13 +88,17 @@ def _validate(spec: dict[str, Any]) -> None:
 
 
 def build_notebook(
-    spec: dict[str, Any], *, filename: str = "notebook.ipynb"
+    spec: dict[str, Any],
+    *,
+    filename: str = "notebook.ipynb",
+    note: str | None = None,
 ) -> NotebookNode:
     """Assemble a Colab notebook from a spec matching ``NOTEBOOK_SCHEMA``.
 
     Args:
         spec: The model's reply: title, pip packages, GPU flag and cells.
         filename: Name Colab shows for the notebook.
+        note: Optional line for the title cell, e.g. the verify result.
 
     Returns:
         A notebook node that can be written to an ``.ipynb`` file.
@@ -81,12 +106,20 @@ def build_notebook(
     Raises:
         ValueError: If the spec is missing required fields.
     """
-    _validate(spec)
+    validate_spec(spec)
 
-    cells = [new_markdown_cell(f"# {spec['title'].strip()}\n\n{DISCLAIMER}")]
-    install_cell = _pip_install_cell(spec.get("pip_packages") or [])
-    if install_cell is not None:
-        cells.append(install_cell)
+    header = f"# {spec['title'].strip()}\n\n{DISCLAIMER}"
+    if note:
+        header += f"\n\n{note}"
+    cells = [new_markdown_cell(header)]
+    install = pip_install_source(spec.get("pip_packages") or [])
+    if install is not None:
+        cells.append(new_code_cell(install))
+    cells.append(
+        new_code_cell(
+            quick_run_source(False), metadata={"tags": [QUICK_RUN_TAG]}
+        )
+    )
     for cell in spec["cells"]:
         source = cell["source"].strip("\n")
         if cell["cell_type"] == "code":

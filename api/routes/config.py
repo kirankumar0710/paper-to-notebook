@@ -5,11 +5,12 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.concurrency import run_in_threadpool
 
 from api.dependencies import check_configuration
 from api.settings import MAX_UPLOAD_MB, VERSION
+from notebook_builder.verify import load_verify_settings, verify_allowed
 from providers.factory import resolve_settings
 from util.config import ConfigError, locate_output_dir
 
@@ -18,12 +19,16 @@ __all__ = ["describe_configuration", "router"]
 router = APIRouter()
 
 
-def describe_configuration() -> dict[str, Any]:
+def describe_configuration(client_host: str | None = None) -> dict[str, Any]:
     """Summarise the current settings for the dashboard.
 
     Never includes the API key itself, only where it was (or was not)
     found. Missing settings are reported in ``problems`` instead of
     raising.
+
+    Args:
+        client_host: The browser's address; the run check is offered only
+            to this machine unless ``[verify] allow_remote`` is set.
     """
     info: dict[str, Any] = {
         "provider": None,
@@ -38,6 +43,7 @@ def describe_configuration() -> dict[str, Any]:
             "writable": False,
         },
         "max_upload_mb": MAX_UPLOAD_MB,
+        "verify": _describe_verify(client_host),
         "problems": check_configuration(),
     }
     try:
@@ -72,10 +78,32 @@ def describe_configuration() -> dict[str, Any]:
     return info
 
 
+def _describe_verify(client_host: str | None) -> dict[str, Any]:
+    """Whether the dashboard may offer the run check, and its defaults."""
+    try:
+        settings = load_verify_settings()
+    except (ConfigError, FileNotFoundError):
+        return {"available": False, "default": False, "reason": None}
+    available = verify_allowed(client_host, settings)
+    return {
+        "available": available,
+        "default": settings.default and available,
+        "max_repairs": settings.max_repairs,
+        "cell_timeout": settings.cell_timeout,
+        "reason": None
+        if available
+        else (
+            "Only available from this machine: it runs LLM-written code "
+            "on the server."
+        ),
+    }
+
+
 @router.get("/api/config")
-async def config() -> dict[str, Any]:
+async def config(request: Request) -> dict[str, Any]:
     """Current provider, API key status and output folder (no secrets)."""
-    return await run_in_threadpool(describe_configuration)
+    host = request.client.host if request.client else None
+    return await run_in_threadpool(describe_configuration, host)
 
 
 @router.get("/health")

@@ -19,6 +19,14 @@
     <span class="hint" id="arxiv-hint">Looked up with the arXiv MCP server;
       see the MCP activity log.</span>
 
+    <label class="check" id="verify-row">
+      <input type="checkbox" id="verify" name="verify">
+      <span>Check that the notebook runs
+        <span class="hint" id="verify-hint">Runs every cell with
+          <code>QUICK_RUN = True</code> and lets the model fix errors.
+          Takes a few minutes longer.</span></span>
+    </label>
+
     <button class="primary" id="submit" type="submit" disabled>
       Convert to notebook</button>
   </form>

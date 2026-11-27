@@ -13,10 +13,12 @@ const ARXIV_REF = new RegExp(String.raw`^(?:arxiv:\s*)?(?:(?:https?://)?` +
 export const looksLikeArxiv = (text) => ARXIV_REF.test(text.trim());
 
 // onChoose(file) runs when a file is picked. onSubmit(source) on Convert,
-// with {kind: "file", file} or {kind: "arxiv", ref}.
+// with {kind: "file", file} or {kind: "arxiv", ref}, plus verify: whether
+// to check that the notebook runs.
 export function initUpload({ onChoose, onSubmit }) {
   const input = $("file"), drop = $("drop"), submit = $("submit");
-  const arxiv = $("arxiv");
+  const arxiv = $("arxiv"), verify = $("verify");
+  const verifyHint = $("verify-hint").innerHTML;
   let maxMb = 15;
   let busy = false;
 
@@ -95,11 +97,24 @@ export function initUpload({ onChoose, onSubmit }) {
   $("form").addEventListener("submit", (event) => {
     event.preventDefault();
     const source = current();
-    if (source) onSubmit(source);
+    if (source) onSubmit({ ...source, verify: verify.checked });
   });
 
   return {
     setStatus,
+    // options: the "verify" part of GET /api/config.
+    setVerify(options) {
+      const available = Boolean(options && options.available);
+      verify.disabled = !available;
+      verify.checked = available && Boolean(options.default);
+      $("verify-row").classList.toggle("disabled", !available);
+      if (available) $("verify-hint").innerHTML = verifyHint;
+      else {
+        $("verify-hint").textContent = (options && options.reason) ||
+          "Not available on this server.";
+      }
+    },
+
     setMaxMb(mb) {
       maxMb = mb;
       if (!input.files[0]) showFile();

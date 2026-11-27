@@ -65,12 +65,22 @@ class TestBuildNotebook:
     def test_cells(self):
         notebook = build_notebook(SPEC)
         types = [cell.cell_type for cell in notebook.cells]
-        assert types == ["markdown", "code", "markdown", "code"]
+        # Title, pip install, QUICK_RUN, then the model's cells.
+        assert types == ["markdown", "code", "code", "markdown", "code"]
         assert notebook.cells[0].source.startswith(
             "# Attention Is All You Need"
         )
-        assert notebook.cells[3].source == "import torch\nprint(1)"
+        assert notebook.cells[4].source == "import torch\nprint(1)"
         nbformat.validate(notebook)
+
+    def test_quick_run_cell_is_off(self):
+        cell = build_notebook(SPEC).cells[2]
+        assert cell.source.endswith("QUICK_RUN = False")
+        assert cell.metadata["tags"] == ["quick-run"]
+
+    def test_note_goes_in_title_cell(self):
+        notebook = build_notebook(SPEC, note="*Checked.*")
+        assert notebook.cells[0].source.endswith("\n\n*Checked.*")
 
     def test_pip_cell_dedupes_and_drops_unsafe_specs(self):
         install = build_notebook(SPEC).cells[1].source
@@ -78,7 +88,8 @@ class TestBuildNotebook:
 
     def test_no_pip_cell_without_packages(self):
         notebook = build_notebook({**SPEC, "pip_packages": []})
-        assert notebook.cells[1].cell_type == "markdown"
+        assert "pip install" not in notebook.cells[1].source
+        assert notebook.cells[1].source.endswith("QUICK_RUN = False")
 
     def test_colab_metadata(self):
         notebook = build_notebook(SPEC, filename="paper.ipynb")
@@ -330,7 +341,14 @@ class TestSavedCopy:
     def test_page_includes_every_panel(self):
         page = TestClient(api_main.app).get("/").text
         assert "<!-- include:" not in page
-        for panel in ("config", "upload", "output", "metrics", "download"):
+        for panel in (
+            "config",
+            "upload",
+            "output",
+            "metrics",
+            "download",
+            "check",
+        ):
             assert f'id="{panel}-panel"' in page
 
     def test_panel_assets_are_served(self):
@@ -341,6 +359,8 @@ class TestSavedCopy:
             "/static/base.css",
             "/static/panels/output/output.js",
             "/static/panels/metrics/metrics.css",
+            "/static/panels/check/check.js",
+            "/static/panels/check/check.css",
         ):
             assert client.get(path).status_code == 200, path
 

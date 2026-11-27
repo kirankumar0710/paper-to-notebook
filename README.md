@@ -69,7 +69,8 @@ override file named by `PAPER_TO_NOTEBOOK_CONFIG`, and environment
 variables, in increasing order of priority. `PROVIDER` and API keys
 come only from the environment.
 
-<mark><b>Architecture details:</b></mark> [docs/architecture.html](docs/architecture.html)
+<mark><b>Docs:</b></mark> [docs/index.html](docs/index.html): the overview,
+[architecture](docs/architecture.html) and [UI architecture](docs/ui-architecture.html)
 
 <mark><b>Example:</b></mark> [non-linear activation functions.pdf](example/non-linear%20activation%20functions.pdf)
 → [non-linear activation functions.ipynb](example/non-linear%20activation%20functions.ipynb),
@@ -225,6 +226,58 @@ For example, `command = ["uvx", "arxiv-mcp-server"]` runs it with uv
 instead. The MCP SDK starts the server with a minimal environment, so
 your LLM API keys are not passed to it.
 
+## Check that the notebook runs (optional)
+
+Tick **Check that the notebook runs** on the Upload panel (or send
+`verify=true` to `/convert` or `/convert/stream`) to test the notebook
+before you get it:
+
+1. Every notebook starts with a `QUICK_RUN = False` cell, and the model is
+   told to use tiny data and very few epochs when it is `True`. The check
+   runs the code cells top to bottom with `QUICK_RUN = True`, so a long
+   training run becomes a smoke test of a few seconds. The notebook you
+   download still has `QUICK_RUN = False` and runs the full experiment.
+2. If a cell fails or runs past `cell_timeout`, its code and error go back
+   to the same LLM, which returns fixed cells. The notebook is run again,
+   up to `max_repairs` times.
+3. While it runs, a **Run check** drawer slides in from the right edge. It
+   shows each run cell by cell (running, passed with its time and output,
+   or failed with the error) and each fix the model made between runs.
+   The panels on the left stay usable; **Collapse** (or Esc) folds it into
+   a tab on the right edge, with a status dot, that opens it again.
+4. The result shows under the download link, in the Metrics panel, and as
+   a line in the notebook's title cell. Repair tokens count towards the
+   cost.
+
+Repairs use the same `LLMProvider` interface as the conversion, so the
+check works with Anthropic, Gemini and OpenAI. GPU notebooks are skipped.
+
+**It runs LLM-written code on the server.** The code runs in a separate
+Python process with no API keys in its environment, in a throwaway
+folder, under per-cell and total timeouts, but it is not a full sandbox:
+it can still reach the network and your files. So the check is offered
+only to a browser on the same machine (localhost) unless you set
+`allow_remote = true`. Leave that off on a shared or public server.
+
+On first use, the check creates a virtual environment in
+`~/.cache/paper-to-notebook/verify-env` and installs `base_packages`
+(numpy, scipy, pandas, matplotlib, scikit-learn and torch, standing in for
+what Colab preinstalls). This takes a few minutes once. Packages a
+notebook asks for are installed there too. To use an environment you
+already have, set `python`. The settings are under `[verify]` in
+`config.toml`:
+
+```toml
+[verify]
+default = false        # tick the checkbox by default
+allow_remote = false   # offer the check to clients not on localhost
+skip_gpu = true
+cell_timeout = 120     # seconds per cell
+total_timeout = 600    # seconds per run of the whole notebook
+max_repairs = 2
+python = ""            # e.g. "~/miniconda3/envs/ml/bin/python"
+```
+
 ## LLM providers (Anthropic, Gemini, OpenAI)
 
 [`config.toml`](config.toml) holds the vendor defaults, one table per provider:
@@ -350,12 +403,15 @@ The tests use fake LLM clients, so they make no API calls and need no keys.
 │       ├── base.css        # Theme, grid layout, shared styles
 │       ├── shared.js       # Formatting, SSE reader, scroll helpers
 │       ├── app.js          # Wires the panels together, runs a conversion
-│       └── panels/<name>/  # config, upload, output, metrics, download, mcp:
+│       └── panels/<name>/  # config, upload, output, metrics, download, mcp,
+│                           #   check (Run check drawer):
 │                           #   <name>.html, <name>.css, <name>.js
 ├── notebook_builder/
 │   ├── prompt.py           # System prompt + JSON schema for the model
 │   ├── converter.py        # pdf_to_notebook(): PDF → LLM → notebook
-│   └── builder.py          # JSON spec → Colab .ipynb (nbformat)
+│   ├── builder.py          # JSON spec → Colab .ipynb (nbformat)
+│   ├── verify.py           # Optional run check and LLM repairs
+│   └── sandbox_runner.py   # Runs the cells in a separate process
 ├── providers/
 │   ├── base.py             # LLMProvider interface, ProviderSettings
 │   ├── claude.py           # Anthropic SDK
@@ -373,7 +429,7 @@ The tests use fake LLM clients, so they make no API calls and need no keys.
 │   ├── pricing.py          # Cost estimate from [pricing]
 │   ├── text_utils.py       # Safe filenames
 │   └── url_utils.py        # Split API version off base URLs
-├── docs/                   # Overview and architecture diagrams
+├── docs/                   # index.html: overview, architecture, UI architecture
 ├── tests/
 ├── config.toml             # Provider defaults and prices (no keys)
 ├── output/                 # Saved notebooks (git-ignored)

@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Paper to Notebook UI Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  /* Same tokens as architecture.html */
+  :root {
+    --bg: #f6f7f9; --surface: #ffffff; --fg: #1b2230; --muted: #5c6678;
+    --line: #b9c1ce; --zone: #eceff4; --accent: #2456c9; --accent-soft: #dfe7fb;
+    --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12161d; --surface: #1a2029; --fg: #e3e8f0; --muted: #98a3b5;
+      --line: #445064; --zone: #171c24; --accent: #8cafff; --accent-soft: #22324f;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12161d; --surface: #1a2029; --fg: #e3e8f0; --muted: #98a3b5;
+    --line: #445064; --zone: #171c24; --accent: #8cafff; --accent-soft: #22324f;
+    color-scheme: dark;
+  }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+    font-family: var(--font-sans); font-size: 15px; line-height: 1.55; }
+  .page { max-width: 1100px; margin: 0 auto; padding-block: 40px 64px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: grid; gap: 40px; }
+  header { display: grid; gap: 8px; max-width: 72ch; }
+  .back { font-size: 14px; color: var(--accent); text-decoration: none; }
+  .back:hover, .back:focus-visible { text-decoration: underline; }
+  .eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0; }
+  h1 { font-size: 30px; line-height: 1.2; font-weight: 600; margin: 0; }
+  h2 { font-size: 19px; font-weight: 600; margin: 0; }
+  h3 { font-size: 16px; font-weight: 600; margin: 6px 0 0; }
+  p { margin: 0; }
+  .lede { color: var(--muted); }
+  a { color: var(--accent); }
+  code { font-family: var(--font-mono); font-size: 0.9em; }
+  section { display: grid; gap: 14px; min-width: 0; }
+  section > p, section > ul, section > ol { max-width: 76ch; }
+  section[id] { scroll-margin-top: 16px; }
+  ul, ol { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+
+  .toc { display: grid; gap: 8px; }
+  .toc ol { font-size: 16px; gap: 4px; }
+  .toc a { text-decoration: none; }
+  .toc a:hover, .toc a:focus-visible { text-decoration: underline; }
+
+  .table { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 12px;
+    border-bottom: 1px solid var(--line); }
+  tr:last-child td { border-bottom: 0; }
+  th { font-weight: 600; color: var(--muted); font-size: 12px;
+    font-family: var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; }
+  td code { overflow-wrap: anywhere; font-size: 12.5px; }
+
+  pre { margin: 0; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 8px; padding: 12px 14px; overflow: auto; font-size: 12.5px;
+    line-height: 1.5; }
+  pre code { font-size: inherit; }
+  .note { font-size: 14px; color: var(--muted); max-width: 76ch; }
+
+  /* Event flow: events on the left, the panel methods they call on the right. */
+  .flow { display: grid; gap: 10px; }
+  .flow-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px;
+    align-items: start; }
+  .event { font: 600 13px var(--font-mono); padding: 8px 10px; border-radius: 8px;
+    background: var(--accent-soft); border: 1px solid var(--accent); color: var(--accent); }
+  .calls { display: flex; flex-wrap: wrap; gap: 6px; }
+  .call { font: 400 12.5px var(--font-mono); padding: 7px 10px; border-radius: 6px;
+    background: var(--surface); border: 1px solid var(--line); }
+  .flow-row p { grid-column: 2; font-size: 13.5px; color: var(--muted); }
+  @media (max-width: 640px) {
+    .flow-row { grid-template-columns: minmax(0, 1fr); }
+    .flow-row p { grid-column: 1; }
+  }
+  .chain { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .chip { background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+    padding: 6px 10px; font-size: 13px; display: grid; gap: 1px; }
+  .chip code { color: var(--muted); font-size: 12px; }
+  .gt { color: var(--muted); font-family: var(--font-mono); }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <a class="back" href="index.html">← Docs</a>
+    <p class="eyebrow">paper-to-notebook · dashboard</p>
+    <h1>UI architecture</h1>
+    <p class="lede">How the dashboard is built, how data reaches it, and how to change it. For the backend, see <a href="architecture.html">Architecture</a>; for colours, spacing and panel style, see the <a href="../.claude/skills/paper-notebook-ui-design/SKILL.md">UI design guidelines</a>.</p>
+  </header>
+
+  <nav class="toc" aria-label="Contents">
+    <p class="eyebrow">Contents</p>
+    <ol>
+      <li><a href="#no-framework">No framework</a></li>
+      <li><a href="#files">Files and panels</a></li>
+      <li><a href="#assembly">How the page is assembled</a></li>
+      <li><a href="#panel">How a panel is written</a></li>
+      <li><a href="#data-flow">Data flow during a conversion</a></li>
+      <li><a href="#drawer">The Run check drawer</a></li>
+      <li><a href="#styling">Layout and styling</a></li>
+      <li><a href="#adding">Adding a panel</a></li>
+      <li><a href="#testing">Testing</a></li>
+      <li><a href="#library">When to add a library</a></li>
+    </ol>
+  </nav>
+
+  <section id="no-framework">
+    <h2>1. No framework</h2>
+    <p>The dashboard is plain <strong>HTML, CSS and JavaScript</strong>: no React, Vue or Tailwind, no <code>npm</code>, and no build step. FastAPI serves the files in <code>api/static/</code> as they are.</p>
+    <div class="table"><table>
+      <thead><tr><th>Layer</th><th>What is used</th></tr></thead>
+      <tbody>
+        <tr><td>Markup</td><td>Plain HTML, one file per panel, put together by the server</td></tr>
+        <tr><td>Styles</td><td>Plain CSS with custom properties (design tokens) in <code>base.css</code></td></tr>
+        <tr><td>Scripts</td><td>Native ES modules (<code>&lt;script type="module"&gt;</code>, <code>import</code>/<code>export</code>)</td></tr>
+        <tr><td>Server data</td><td><code>fetch()</code> for JSON; server-sent events from <code>POST /convert/stream</code></td></tr>
+        <tr><td>Layout</td><td>CSS grid, responsive with two media queries</td></tr>
+      </tbody>
+    </table></div>
+    <p><strong>Why:</strong> the UI is small (seven panels, one conversion flow), so a framework would add more weight than it saves. Without one, the Python setup is the only setup: nothing to install or build, fast page loads, and no JavaScript dependencies to keep patched.</p>
+  </section>
+
+  <section id="files">
+    <h2>2. Files and panels</h2>
+<pre><code>api/static/
+├── index.html          # Page shell: header, grid, one include line per panel
+├── base.css            # Design tokens, grid layout, shared panel frame
+├── shared.js           # Helpers used by every panel
+├── app.js              # Wires the panels together, runs a conversion
+├── logo.png
+└── panels/&lt;name&gt;/      # One folder per panel
+    ├── &lt;name&gt;.html     #   its markup
+    ├── &lt;name&gt;.css      #   its styles (tokens from base.css only)
+    └── &lt;name&gt;.js       #   exports init&lt;Name&gt;()</code></pre>
+    <div class="table"><table>
+      <thead><tr><th>Panel</th><th>Folder</th><th>Job</th></tr></thead>
+      <tbody>
+        <tr><td>Configuration</td><td><code>config/</code></td><td>Provider, model, API key status, save folder (<code>GET /api/config</code>)</td></tr>
+        <tr><td>Upload paper / specify link</td><td><code>upload/</code></td><td>PDF drop zone, arXiv field, "Check that the notebook runs", Convert</td></tr>
+        <tr><td>Download</td><td><code>download/</code></td><td>Link to the new notebook, the run check result, notebooks from this session (<code>GET /api/notebooks</code>)</td></tr>
+        <tr><td>LLM output</td><td><code>output/</code></td><td>Stages, activity log, the model's reasoning summary</td></tr>
+        <tr><td>MCP activity log</td><td><code>mcp/</code></td><td>arXiv MCP server calls (polls <code>GET /api/mcp/events</code>)</td></tr>
+        <tr><td>Metrics</td><td><code>metrics/</code></td><td>Tokens, cost, time per stage, paper and notebook facts, session totals</td></tr>
+        <tr><td>Run check</td><td><code>check/</code></td><td>Side drawer showing each run of the notebook during the optional run check</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="assembly">
+    <h2>3. How the page is assembled</h2>
+    <ol>
+      <li>The browser requests <code>GET /</code>.</li>
+      <li><code>api/routes/dashboard.py</code> reads <code>index.html</code> and replaces each <code>&lt;!-- include: panels/&lt;name&gt;/&lt;name&gt;.html --&gt;</code> line with that file's contents. Includes must stay inside <code>api/static/</code>.</li>
+      <li>The page links <code>base.css</code>, then each panel's CSS, and loads <code>app.js</code> as a module, which imports the panels' scripts.</li>
+      <li>Static files are served from <code>/static</code> with <code>Cache-Control: no-cache</code> (<code>RevalidatedStaticFiles</code> in <code>api/main.py</code>). The browser re-checks each file, so it never shows new HTML with old CSS or JS after an update; unchanged files come back as a cheap 304.</li>
+    </ol>
+  </section>
+
+  <section id="panel">
+    <h2>4. How a panel is written</h2>
+    <p>Each panel's script exports one function that sets up its part of the page and returns the methods other code may call:</p>
+<pre><code>// panels/example/example.js
+import { $, el } from "../../shared.js";
+
+export function initExample() {
+  // Find elements, attach listeners, load initial data.
+  return {
+    start(paper) { /* a conversion started */ },
+    progress(update) { /* a progress event arrived */ },
+    done(result) { /* the result event arrived */ },
+    fail(message) { /* the conversion failed */ },
+  };
+}</code></pre>
+    <p>Rules that keep the panels independent:</p>
+    <ul>
+      <li>A panel changes <strong>only its own elements</strong> (ids it owns, e.g. <code>m-*</code> for Metrics, <code>check-*</code> for Run check).</li>
+      <li>Panels <strong>never import each other</strong>. Only <code>app.js</code> knows about more than one panel and passes data between them.</li>
+      <li>DOM is built with <code>el(tag, props, ...children)</code> from <code>shared.js</code>, and text is set with <code>textContent</code>, never <code>innerHTML</code> with server data, so model output cannot inject markup.</li>
+    </ul>
+    <p><code>shared.js</code> provides <code>$()</code> (get by id), <code>el()</code> (create an element), <code>fmtInt</code>, <code>fmtBytes</code>, <code>fmtDuration</code>, <code>clock</code>, scroll helpers (<code>atBottom</code>, <code>follow</code>) and <code>readEvents()</code>, which reads a server-sent event stream from a <code>fetch()</code> response.</p>
+  </section>
+
+  <section id="data-flow">
+    <h2>5. Data flow during a conversion</h2>
+    <div class="chain" aria-label="Request path">
+      <div class="chip"><b>Upload panel</b><code>onSubmit({kind, file|ref, verify})</code></div>
+      <span class="gt">›</span>
+      <div class="chip"><b>app.js</b><code>convert()</code></div>
+      <span class="gt">›</span>
+      <div class="chip"><b>Server</b><code>POST /convert/stream</code></div>
+      <span class="gt">›</span>
+      <div class="chip"><b>shared.js</b><code>readEvents()</code></div>
+    </div>
+    <p>Each server-sent event is handed by <code>app.js</code> to the panels that need it:</p>
+    <div class="flow">
+      <div class="flow-row">
+        <span class="event">progress</span>
+        <div class="calls"><span class="call">output.progress</span><span class="call">metrics.progress</span><span class="call">check.progress</span></div>
+        <p><code>stage</code> (<code>uploaded</code>, <code>fetching</code>, <code>waiting</code>, <code>thinking</code>, <code>writing</code>, <code>retrying</code>, <code>verifying</code>, <code>repairing</code>, <code>building</code>, <code>done</code>), <code>message</code>, timings, reasoning summary text, token <code>usage</code>, and during the run check a structured <code>check</code> event.</p>
+      </div>
+      <div class="flow-row">
+        <span class="event">result</span>
+        <div class="calls"><span class="call">output.done</span><span class="call">metrics.done</span><span class="call">download.done</span><span class="call">check.done</span></div>
+        <p>The notebook (as a string), its metrics and the <code>verification</code> report. The Download panel turns the notebook into a blob link.</p>
+      </div>
+      <div class="flow-row">
+        <span class="event">error</span>
+        <div class="calls"><span class="call">output.fail</span><span class="call">metrics.fail</span><span class="call">check.fail</span><span class="call">upload status</span></div>
+        <p><code>status</code> and <code>detail</code>. The full event format is documented on <code>convert_pdf_to_notebook_stream</code> in <code>api/routes/convert.py</code>.</p>
+      </div>
+    </div>
+    <p>Panels that do not depend on a conversion load their own data. Configuration calls <code>GET /api/config</code> and passes it to <code>app.js</code>, which gives the upload limit and run check availability to the Upload panel. Download calls <code>GET /api/notebooks</code>, Metrics calls <code>GET /api/metrics/session</code>, and the MCP log polls <code>GET /api/mcp/events</code> every 3 s, or every 0.7 s while a conversion runs.</p>
+  </section>
+
+  <section id="drawer">
+    <h2>6. The Run check drawer</h2>
+    <p>Run check is the only part of the UI that is not in the grid.</p>
+    <ul>
+      <li>It is a <code>section.panel.drawer</code>, fixed over the right edge of the page, with the same panel frame and its own section colour. It has no backdrop, so the panels on the left stay usable.</li>
+      <li>It is used only when "Check that the notebook runs" is ticked. It slides in when the check starts; <strong>Collapse</strong> (or Escape) folds it into a vertical tab on the right edge, whose dot shows the status. On phones it opens full width.</li>
+      <li>It is drawn from the <code>check</code> events in <code>progress</code> updates: <code>setup</code>, <code>plan</code> (one per run, listing the cells), <code>cell</code> (<code>running</code>, <code>ok</code> with time and output, <code>failed</code> with the error) and <code>repair</code> (<code>running</code>, <code>fixed</code>, <code>failed</code>). See <code>verify_notebook</code> in <code>notebook_builder/verify.py</code>.</li>
+    </ul>
+  </section>
+
+  <section id="styling">
+    <h2>7. Layout and styling</h2>
+    <ul>
+      <li><strong>Grid</strong> (in <code>base.css</code>): desktop has three columns (Configuration | Upload | Download, then LLM output across two columns | MCP log, then Metrics across the width), tablet (≤ 1100 px) has two, and phone (≤ 720 px) has one.</li>
+      <li><strong>Design tokens</strong> are CSS custom properties on <code>:root</code>: the palette, the status colours (<code>--ok</code>, <code>--warn</code>, <code>--error</code>), a sequence scale for ordered stages (<code>--seq-1</code>…<code>--seq-5</code>), a section tint and border per panel (<code>--tint-&lt;panel&gt;</code>, <code>--line-&lt;panel&gt;</code>), spacing, radius and fonts. Panel CSS uses only these tokens; a panel's section colour is set only in <code>base.css</code>.</li>
+      <li>The visual rules (white page, soft section tints, uppercase titles at the top-left, actions at the top-right, status colours only for status) are in the <a href="../.claude/skills/paper-notebook-ui-design/SKILL.md">UI design guidelines</a>.</li>
+    </ul>
+  </section>
+
+  <section id="adding">
+    <h2>8. Adding a panel</h2>
+    <ol>
+      <li>Create <code>api/static/panels/&lt;name&gt;/</code> with <code>&lt;name&gt;.html</code> (a <code>section.panel</code> with an <code>id</code> of <code>&lt;name&gt;-panel</code> and a <code>.panel-head</code>), <code>&lt;name&gt;.css</code> and <code>&lt;name&gt;.js</code> (exporting <code>init&lt;Name&gt;()</code>).</li>
+      <li>In <code>index.html</code>, add the <code>&lt;link&gt;</code> for its CSS and an <code>&lt;!-- include: panels/&lt;name&gt;/&lt;name&gt;.html --&gt;</code> line.</li>
+      <li>In <code>base.css</code>, give it a grid area in all three layouts and a section colour (<code>--tint-&lt;name&gt;</code> / <code>--line-&lt;name&gt;</code>).</li>
+      <li>In <code>app.js</code>, import and call <code>init&lt;Name&gt;()</code>, and pass it the events it needs.</li>
+      <li>Add it to the page tests in <code>tests/test_notebook.py</code> (<code>test_page_includes_every_panel</code>, <code>test_panel_assets_are_served</code>).</li>
+    </ol>
+  </section>
+
+  <section id="testing">
+    <h2>9. Testing</h2>
+    <ul>
+      <li><code>./check.sh</code> (or <code>pytest</code>) checks that the page assembles, that every panel is included, and that the panel assets are served. The backend events the panels read are tested in <code>tests/test_progress.py</code> and <code>tests/test_verify.py</code>.</li>
+      <li>There are no JavaScript unit tests. Check UI changes in a browser at desktop, tablet and phone widths, as the UI design guidelines require; <code>node --check &lt;file&gt;.js</code> catches syntax errors.</li>
+    </ul>
+  </section>
+
+  <section id="library">
+    <h2>10. When to add a library</h2>
+    <p>Updating the page by hand works because each panel owns a small part of it. If the UI grows a lot (many more panels, shared state between them, or complex forms), the first step should be a small library that also needs no build step, such as <strong>Alpine.js</strong> or <strong>Preact</strong> with <code>htm</code>, loaded as ES modules. A full React or Vue setup with a bundler would add an <code>npm</code> toolchain that this project does not otherwise need.</p>
+  </section>
+</div>
+</body>
+</html>

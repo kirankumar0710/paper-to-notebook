@@ -6,7 +6,8 @@ import { $, el, fmtBytes, fmtDuration, fmtInt } from "../../shared.js";
 
 const STAGE_LABELS = {
   upload: "Upload", fetching: "arXiv fetch", waiting: "Waiting", retrying: "Retrying",
-  thinking: "Thinking", writing: "Writing", building: "Building",
+  thinking: "Thinking", writing: "Writing", verifying: "Checking",
+  repairing: "Repairing", building: "Building",
 };
 // Budget use above this share shows as a warning: the next run may be
 // cut off at max_tokens.
@@ -16,9 +17,12 @@ const fmtUsd = (n) => (n == null ? "—"
   : n < 0.01 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}`);
 
 const RUN_IDS = ["m-in", "m-out", "m-total", "m-cost", "m-budget", "m-time",
-  "m-speed", "m-pages", "m-nb", "m-cells", "m-code", "m-pkgs", "m-gpu"];
+  "m-speed", "m-pages", "m-nb", "m-cells", "m-code", "m-pkgs", "m-gpu",
+  "m-check"];
 const RUN_DETAIL_IDS = ["m-cost-d", "m-budget-d", "m-speed-d", "m-pages-d",
-  "m-chars-d", "m-cells-d", "m-pkgs-d"];
+  "m-chars-d", "m-cells-d", "m-pkgs-d", "m-check-d"];
+const CHECK_LABELS = { passed: "Passed", failed: "Failed",
+  skipped: "Skipped", error: "Error" };
 
 export function initMetrics() {
   // Stage timeline for the current run: [{stage, start}] in ms, plus end.
@@ -158,6 +162,14 @@ export function initMetrics() {
       dropped.length ? `${dropped.length} unsafe dropped` : "",
     ].filter(Boolean).join(" · ");
     $("m-gpu").textContent = result.requires_gpu ? "Needed" : "No";
+    const check = result.verification;
+    set("m-check", check ? CHECK_LABELS[check.status] : "Off",
+      Boolean(check) && check.status !== "passed");
+    $("m-check-d").textContent = !check ? "not requested"
+      : check.status === "passed" || check.status === "failed"
+        ? `${check.repairs} fix${check.repairs === 1 ? "" : "es"} · ` +
+          fmtDuration(check.elapsed)
+        : check.message;
   }
 
   // ---- 8. since the server started ----

@@ -3,7 +3,8 @@
 // Each panel (panels/<name>/<name>.js) owns its own part of the page; this
 // file only passes data between them. The Upload panel starts a conversion
 // from a PDF or an arXiv link, and the events from POST /convert/stream go
-// to the LLM output, Metrics and Download panels. The MCP activity log
+// to the LLM output, Metrics, Download and (when the run check is used)
+// Run check panels. The MCP activity log
 // polls on its own and only needs to know when a conversion is running.
 import { readEvents } from "./shared.js";
 import { initConfig } from "./panels/config/config.js";
@@ -12,12 +13,14 @@ import { initOutput } from "./panels/output/output.js";
 import { initMetrics } from "./panels/metrics/metrics.js";
 import { initDownload } from "./panels/download/download.js";
 import { initMcp } from "./panels/mcp/mcp.js";
+import { initCheck } from "./panels/check/check.js";
 
 let config = null;
 const output = initOutput();
 const metrics = initMetrics();
 const download = initDownload();
 const mcp = initMcp();
+const check = initCheck();
 const upload = initUpload({
   onChoose: (file) => metrics.showFile(file),
   onSubmit: convert,
@@ -26,6 +29,7 @@ initConfig({
   onLoad(loaded) {
     config = loaded;
     upload.setMaxMb(loaded.max_upload_mb);
+    upload.setVerify(loaded.verify);
   },
 });
 
@@ -38,7 +42,7 @@ async function errorDetail(response) {
 }
 
 // source: {kind: "file", file} or {kind: "arxiv", ref} from the Upload
-// panel.
+// panel, with verify: whether to check that the notebook runs.
 async function convert(source) {
   const isArxiv = source.kind === "arxiv";
   // What the output and metrics panels show for the paper.
@@ -46,11 +50,13 @@ async function convert(source) {
     ? { kind: "arxiv", ref: source.ref, name: `arXiv ${source.ref}` }
     : { kind: "file", name: source.file.name, size: source.file.size };
   upload.setBusy(true);
-  upload.setStatus(isArxiv
+  upload.setStatus((isArxiv
     ? "Fetching the paper from arXiv, then converting… this usually " +
       "takes a minute or more."
-    : "Converting… this usually takes a minute or more.");
-  output.start(paper);
+    : "Converting… this usually takes a minute or more.") +
+    (source.verify ? " Checking that it runs adds a few minutes." : ""));
+  output.start(paper, { verify: source.verify });
+  check.start(Boolean(source.verify));
   metrics.start(paper, config);
   if (isArxiv) mcp.setActive(true);
 
@@ -65,6 +71,7 @@ async function convert(source) {
     const body = new FormData();
     if (isArxiv) body.append("arxiv", source.ref);
     else body.append("file", source.file);
+    body.append("verify", source.verify ? "true" : "false");
     const response = await fetch("/convert/stream", { method: "POST", body });
     if (!response.ok) throw new Error(await errorDetail(response));
 
@@ -73,12 +80,14 @@ async function convert(source) {
       if (name === "progress") {
         output.progress(data);
         metrics.progress(data);
+        check.progress(data);
       } else if (name === "result") {
         finished = true;
         clearInterval(timer);
         output.done(data);
         metrics.done(data);
         download.done(data);
+        check.done(data);
         upload.setStatus("Your notebook is ready. If it did not download " +
           "automatically, use the Download panel.", "ok");
       } else if (name === "error") {
@@ -94,6 +103,7 @@ async function convert(source) {
     upload.setStatus(`Conversion failed: ${error.message}`, "error");
     output.fail(error.message);
     metrics.fail();
+    check.fail(error.message);
     download.refresh();
   } finally {
     clearInterval(timer);

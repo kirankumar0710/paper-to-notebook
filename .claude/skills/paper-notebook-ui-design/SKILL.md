@@ -11,7 +11,7 @@ description: UI design guidelines for the Paper-to-Notebook dashboard (api/stati
   tokens (`--bg`, `--card`, `--border`, `--accent`, `--accent-hover`,
   `--text`, `--muted`, `--subtle`, `--ok`, `--warn`, `--error`, `--radius`,
   `--radius-sm`, `--pad`, `--gap`, `--font`, `--mono`, `--surface`, the
-  sequence scale `--seq-1`…`--seq-4`, and the section colours
+  sequence scale `--seq-1`…`--seq-5`, and the section colours
   `--tint-<section>` / `--line-<section>`), the dashboard grid, which
   section colour each panel uses (`--panel-bg` / `--panel-line`), the
   shared panel frame (`section.panel`), the panel header (`.panel-head`,
@@ -30,6 +30,14 @@ description: UI design guidelines for the Paper-to-Notebook dashboard (api/stati
 - Layout (desktop): row 1 Configuration | Upload paper / specify link |
   Download; row 2 LLM output (two columns) | MCP activity log; row 3
   Metrics (full width). Tablet: two columns. Mobile: one column.
+- Run check is not in the grid. It is a side drawer (`section.panel
+  .drawer`, fixed over the right edge, with the same panel frame and its
+  own section colour) used only when the user ticks "Check that the
+  notebook runs". It slides in when a check starts, leaves the panels on
+  the left visible and usable (no backdrop), and collapses to a vertical
+  tab on the right edge (Collapse at the top-right, or Escape). On phones
+  it opens full width. `--overlay-shadow` is the only shadow in the
+  design, and only for things that float over the page.
 - Check changes visually at desktop, tablet and phone widths before
   finishing, and run `pytest` (the page tests check the panels render).
 
@@ -124,6 +132,7 @@ dashboards:
 | LLM output | Violet | the AI model | #F5F3FF | #DDD6FE | `--tint-output` / `--line-output` |
 | MCP activity log | Teal | external tools, integrations | #F0FDFA | #CCFBF1 | `--tint-mcp` / `--line-mcp` |
 | Metrics | Amber | measurements, analytics | #FFFBEB | #FEF3C7 | `--tint-metrics` / `--line-metrics` |
+| Run check | Sky | test runs of the notebook | #F0F9FF | #BAE6FD | `--tint-check` / `--line-check` |
 
 Rules:
 - Keep tints soft: a 50 shade for the background and a 100–200 shade for
@@ -145,8 +154,9 @@ not for panel backgrounds other than the section tints above.
 
 Do not introduce additional colors without a functional reason. (The one
 exception in use: the Metrics stage bar is a grey-to-blue scale in stage
-order, tokens `--seq-1`…`--seq-4` plus `--accent` and `--accent-hover`,
-with amber only for "retrying". Use the scale only for ordered stages.)
+order, tokens `--seq-1`…`--seq-5` plus `--accent` and `--accent-hover`,
+with amber only for "retrying" and "repairing", the stages that recover
+from a problem. Use the scale only for ordered stages.)
 
 ## 5. Application Panel Structure
 
@@ -184,6 +194,16 @@ Apply the common panel design to the following sections.
 - Provide Clear at the top-right.
 - Use readable timestamps and subtle status indicators.
 - Support automatic polling without disrupting the user's interaction.
+
+### Run check (side drawer)
+- Used only while the run check is used; drawer and tab are hidden
+  otherwise. Collapse sits at the top-right like other panel actions; the
+  collapsed tab shows a status dot in the status colours.
+- One collapsible block per run, cell by cell: a status dot (grey
+  pending, blue running, green passed, red failed), the cell's first line
+  of code, its time, and its output or error in a collapsible box.
+- The model's fixes appear between runs with an amber (or red if the
+  repair failed) left rule.
 
 ### Metrics
 - Display token usage, cost, execution time, PDF information, notebook

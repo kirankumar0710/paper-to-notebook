@@ -24,6 +24,15 @@ button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
 #status.error { color: var(--error); }
 #status.ok { color: var(--ok); }
 
+/* Check that the notebook runs */
+label.check { display: flex; align-items: flex-start; gap: 8px;
+  margin-top: 14px; font-size: 0.9rem; cursor: pointer; }
+label.check input { margin: 3px 0 0; accent-color: var(--accent);
+  flex: none; }
+label.check .hint { margin-top: 2px; }
+label.check.disabled { color: var(--muted); cursor: not-allowed; }
+label.check code { font-family: var(--mono); font-size: 0.78rem; }
+
 /* "or" divider between the file and the arXiv link */
 p.or { display: flex; align-items: center; gap: 10px; margin: 14px 0;
   color: var(--muted); font-size: 0.8rem; text-transform: uppercase;

@@ -1,0 +1,102 @@
+/* Run check: every run of the notebook, cell by cell, with the model's
+   fixes between runs, in a drawer that slides in over the right edge of
+   the page. The panels on the left stay visible and usable. */
+
+/* The drawer */
+#check-panel.drawer {
+  position: fixed; z-index: 20; top: 12px; bottom: 12px; right: 12px;
+  width: min(560px, calc(100vw - 24px));
+  display: flex; flex-direction: column;
+  box-shadow: var(--overlay-shadow);
+  transform: translateX(calc(100% + 24px)); visibility: hidden;
+  transition: transform 0.25s ease, visibility 0s linear 0.25s;
+}
+#check-panel.drawer.open {
+  transform: none; visibility: visible;
+  transition: transform 0.25s ease, visibility 0s;
+}
+#check-runs { flex: 1; min-height: 0; overflow-y: auto;
+  overscroll-behavior: contain; margin: 0 calc(-1 * var(--pad));
+  padding: 0 var(--pad); }
+@media (max-width: 720px) {
+  #check-panel.drawer { top: 0; bottom: 0; right: 0; width: 100vw;
+    border-radius: 0; }
+}
+
+/* The tab on the right edge while the drawer is collapsed */
+button.drawer-tab {
+  position: fixed; z-index: 19; right: 0; top: 50%;
+  transform: translateY(-50%);
+  display: flex; align-items: center; gap: 8px;
+  writing-mode: vertical-rl; padding: 14px 8px;
+  border: 1px solid var(--line-check); border-right: 0;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  background: var(--tint-check); color: var(--accent);
+  box-shadow: var(--overlay-shadow);
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+button.drawer-tab:hover { color: var(--accent-hover); }
+button.drawer-tab .dot { width: 8px; height: 8px; border-radius: 50%;
+  background: var(--seq-1); }
+button.drawer-tab .dot.running { background: var(--accent);
+  animation: check-pulse 1s ease-in-out infinite; }
+button.drawer-tab .dot.ok { background: var(--ok); }
+button.drawer-tab .dot.warn { background: var(--warn); }
+button.drawer-tab .dot.error { background: var(--error); }
+@media (prefers-reduced-motion: reduce) {
+  #check-panel.drawer, #check-panel.drawer.open { transition: none; }
+  button.drawer-tab .dot.running { animation: none; }
+}
+.check-attempt { font-size: 13px; color: var(--muted); }
+#check-status { margin: 0 0 10px; font-weight: 600; }
+#check-status.ok { color: var(--ok); }
+#check-status.warn { color: var(--warn); }
+#check-status.error { color: var(--error); }
+.check-setup { margin: 0 0 10px; font-size: 0.85rem; color: var(--muted); }
+
+/* One run of the notebook */
+details.run { margin-top: 10px; flex: none; border-radius: var(--radius-sm);
+  background: var(--surface); border: 1px solid var(--panel-line); }
+details.run > summary { padding: 8px 12px; cursor: pointer;
+  font-size: 0.85rem; font-weight: 600; }
+details.run > summary .sub { display: inline; font-weight: 400;
+  margin-left: 6px; }
+ol.cells { list-style: none; margin: 0; padding: 0 12px 8px; }
+ol.cells > li { border-top: 1px solid var(--panel-line); padding: 6px 0; }
+.cell-row { display: flex; align-items: center; gap: 10px;
+  font-size: 0.85rem; min-width: 0; }
+.cell-row .dot { width: 8px; height: 8px; border-radius: 50%; flex: none;
+  background: var(--seq-1); }
+.cell-row .name { flex: none; width: 6.5em; font-weight: 600; }
+.cell-row code { flex: 1; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.cell-row .time { flex: none; color: var(--muted); font-size: 0.8rem; }
+li.running .dot { background: var(--accent);
+  animation: check-pulse 1s ease-in-out infinite; }
+li.running .name { color: var(--accent); }
+li.ok .dot { background: var(--ok); }
+li.failed .dot { background: var(--error); }
+li.failed .name { color: var(--error); }
+li.pending .name, li.pending code { opacity: 0.6; }
+@keyframes check-pulse { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) {
+  li.running .dot { animation: none; }
+}
+
+/* A cell's output or error */
+ol.cells details { margin: 4px 0 0 18px; }
+ol.cells details summary { cursor: pointer; font-size: 0.8rem;
+  color: var(--accent); }
+ol.cells pre { margin: 4px 0 0; padding: 8px 10px; max-height: 14em;
+  overflow: auto; border-radius: var(--radius-sm);
+  border: 1px solid var(--panel-line); background: var(--subtle);
+  font-family: var(--mono); font-size: 0.78rem; white-space: pre-wrap;
+  overflow-wrap: anywhere; }
+li.failed pre { color: var(--error); }
+
+/* The model's fix between two runs */
+.repair { margin: 10px 0 0; padding: 8px 12px; font-size: 0.85rem;
+  border-left: 3px solid var(--warn); background: var(--surface);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.repair.failed { border-left-color: var(--error); }
+.repair .sub { margin-top: 2px; }

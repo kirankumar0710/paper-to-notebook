@@ -1,0 +1,23 @@
+<!-- Run check: a side drawer over the right edge, used only while
+     "Check that the notebook runs" is ticked. Collapses to a tab. -->
+<button class="drawer-tab" id="check-tab" type="button" hidden
+  aria-controls="check-panel" aria-expanded="false"
+  title="Show the run check">
+  <i class="dot" id="check-tab-dot" aria-hidden="true"></i>
+  <span>Run check</span>
+</button>
+<section class="panel drawer" id="check-panel" aria-labelledby="check-h"
+  hidden>
+  <div class="panel-head">
+    <h2 id="check-h">Run check</h2>
+    <div class="panel-actions">
+      <span class="check-attempt" id="check-attempt"></span>
+      <button class="link" id="check-collapse" type="button"
+        aria-controls="check-panel" aria-expanded="true">Collapse</button>
+    </div>
+  </div>
+  <p id="check-status" aria-live="polite">Waiting for the model to write
+    the notebook…</p>
+  <p class="check-setup" id="check-setup" hidden></p>
+  <div id="check-runs"></div>
+</section>

@@ -47,6 +47,8 @@
 .stage-retrying { background: var(--warn); }
 .stage-thinking { background: var(--seq-4); }
 .stage-writing { background: var(--accent); }
+.stage-verifying { background: var(--seq-5); }
+.stage-repairing { background: var(--warn); }
 .stage-building { background: var(--accent-hover); }
 
 #metrics-note, #metrics-served { margin: 10px 0 0; font-size: 0.8rem;

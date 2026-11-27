@@ -64,6 +64,45 @@ api_key_env = ["OPENAI_API_KEY"]
 [app]
 output_dir = "NOTEBOOK_OUTPUT_DIR"
 
+# Optional "Check that the notebook runs" step. After the model writes the
+# notebook, its code cells are run top to bottom with QUICK_RUN = True (tiny
+# data, few steps); if a cell fails, the error goes back to the same LLM
+# for a fix, up to max_repairs times. It works with every provider.
+#
+# This runs code written by an LLM on this machine, in a separate process
+# with no API keys in its environment and a throwaway working folder. It is
+# offered only to browsers on this machine (localhost) unless allow_remote
+# is true; leave allow_remote false on a shared or public server.
+#
+#   default        tick the dashboard checkbox by default
+#   allow_remote   offer the check to clients that are not on localhost
+#   skip_gpu       skip notebooks the model marks as needing a GPU
+#   cell_timeout   seconds one cell may run before it counts as failed
+#   total_timeout  seconds for one run of the whole notebook
+#   max_repairs    how many times the LLM may fix a failed notebook
+#   python         interpreter to run notebooks with (e.g. a conda env that
+#                  already has your packages); "" uses the sandbox below
+#   sandbox_dir    virtual environment created on first use for the check
+#   base_packages  installed into the sandbox once, standing in for the
+#                  packages Google Colab preinstalls
+[verify]
+default = false
+allow_remote = false
+skip_gpu = true
+cell_timeout = 120
+total_timeout = 600
+max_repairs = 2
+python = ""
+sandbox_dir = "~/.cache/paper-to-notebook/verify-env"
+base_packages = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "matplotlib",
+    "scikit-learn",
+    "torch",
+]
+
 # arXiv papers. Pasting an arXiv ID or link looks the paper up with the
 # arXiv MCP server (the arxiv-mcp-server package), started over stdio for
 # each lookup; the app then downloads the PDF from arxiv.org.
