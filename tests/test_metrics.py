@@ -195,6 +195,7 @@ def _parse_sse(text):
     return events
 
 
+@pytest.mark.integration
 class TestStreamMetrics:
     @pytest.fixture
     def client(self):

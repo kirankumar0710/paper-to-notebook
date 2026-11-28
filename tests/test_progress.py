@@ -311,6 +311,7 @@ def _parse_sse(text):
     return events
 
 
+@pytest.mark.integration
 class TestStreamEndpoint:
     @pytest.fixture
     def client(self):
@@ -461,6 +462,7 @@ class TestStreamEndpoint:
         assert (kind, error["status"]) == ("error", 502)
 
 
+@pytest.mark.integration
 class TestConfigEndpoint:
     @pytest.fixture
     def client(self, monkeypatch):
@@ -484,6 +486,7 @@ class TestConfigEndpoint:
         assert info["output_dir"]["writable"] is True
         assert info["problems"] == []
 
+    @pytest.mark.security
     def test_key_is_never_returned(self, client, monkeypatch):
         monkeypatch.setenv("PROVIDER", "anthropic")
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-secret-qzxjvwkqzxjv")

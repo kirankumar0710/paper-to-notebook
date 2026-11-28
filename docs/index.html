@@ -41,8 +41,12 @@
   .lede { color: var(--muted); }
   code { font-family: var(--font-mono); font-size: 0.9em; }
 
+  .group { display: grid; gap: 14px; padding: 18px; border-radius: 12px;
+    background: var(--zone); border: 1px solid var(--line); min-width: 0; }
+  .group-head { display: grid; gap: 4px; max-width: 72ch; }
+  .group-head p { color: var(--muted); font-size: 14px; }
   .cards { display: grid; gap: 16px;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
   a.card { display: grid; gap: 10px; align-content: start; padding: 18px;
     background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
     color: var(--fg); text-decoration: none; min-width: 0; }
@@ -65,10 +69,16 @@
   <header>
     <p class="eyebrow">paper-to-notebook · docs</p>
     <h1>Paper to Notebook documentation</h1>
-    <p class="lede">How a research paper PDF becomes a Google Colab notebook: start with the overview, then read how the backend and the dashboard are built.</p>
+    <p class="lede">How a research paper PDF becomes a Google Colab notebook. The first group shows how the app is built; the second, how it is kept safe and tested.</p>
   </header>
 
-  <nav class="cards" aria-label="Documents">
+  <section class="group" aria-labelledby="g-build">
+    <div class="group-head">
+      <p class="eyebrow">1 · How it is built</p>
+      <h2 id="g-build">Overview and architecture</h2>
+      <p>Start with the overview, then the backend and the dashboard.</p>
+    </div>
+    <nav class="cards" aria-label="Architecture documents">
     <a class="card" href="overview.svg">
       <div class="thumb"><img src="overview.svg" alt="" loading="lazy"></div>
       <h2>Overview</h2>
@@ -87,13 +97,30 @@
       <p>How the dashboard is built without a framework: panels, how the page is assembled, the event flow during a conversion, the Run check drawer, and how to add a panel.</p>
       <span class="file">ui-architecture.html</span>
     </a>
+    </nav>
+  </section>
+
+  <section class="group" aria-labelledby="g-safe">
+    <div class="group-head">
+      <p class="eyebrow">2 · How it is kept safe</p>
+      <h2 id="g-safe">Security and testing</h2>
+      <p>What protects the app, and the tests that prove each part works.</p>
+    </div>
+    <nav class="cards" aria-label="Security and testing documents">
     <a class="card" href="security.html">
       <div class="thumb"><svg viewBox="0 0 160 100" role="img" aria-label="" style="width:100%;height:100%;display:block"><rect width="160" height="100" fill="#ffffff"/><path d="M80 18 L108 28 V50 C108 68 96 80 80 86 C64 80 52 68 52 50 V28 Z" fill="#dfe7fb" stroke="#2456c9" stroke-width="3"/><path d="M68 52 L77 61 L93 43" fill="none" stroke="#2456c9" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       <h2>Security hardening</h2>
       <p>What protects the app and why: automated checks, CORS and cross-site protection, DNS rebinding, security headers, the run check's code execution, prompt injection, API keys, limits, dependencies, review findings and remaining risks.</p>
       <span class="file">security.html</span>
     </a>
-  </nav>
+    <a class="card" href="testing.html">
+      <div class="thumb"><svg viewBox="0 0 160 100" role="img" aria-label="" style="width:100%;height:100%;display:block"><rect width="160" height="100" fill="#ffffff"/><g font-family="IBM Plex Mono, monospace" font-size="8" fill="#5c6678"><text x="22" y="27">unit</text><text x="22" y="47">integration</text><text x="22" y="67">e2e</text><text x="22" y="87">security</text></g><rect x="78" y="20" width="62" height="9" rx="4.5" fill="#2456c9"/><rect x="78" y="40" width="23" height="9" rx="4.5" fill="#0f766e"/><rect x="78" y="60" width="4" height="9" rx="2" fill="#b45309"/><rect x="78" y="80" width="22" height="9" rx="4.5" fill="#9f1239"/></svg></div>
+      <h2>Tests</h2>
+      <p>The 462 tests by level (unit, integration, E2E browser, run by hand) and the security marker: how to run each group, what each file covers, which tests guard which defence, and how to add a test.</p>
+      <span class="file">testing.html</span>
+    </a>
+    </nav>
+  </section>
 
   <section class="more">
     <p class="eyebrow">Elsewhere</p>
@@ -101,6 +128,7 @@
       <li><a href="../README.md">README</a>: setup, running the server, providers, the run check and configuration</li>
       <li><a href="../.claude/skills/paper-notebook-ui-design/SKILL.md">UI design guidelines</a>: colours, spacing and panel rules for the dashboard</li>
       <li><a href="../.claude/skills/security-hardening/SKILL.md">Security hardening skill</a>: threat model, checklist for new code, triage rules and the manual review</li>
+      <li><a href="../tests/">tests/</a>: the test suite; <code>uv run pytest -m unit</code>, <code>integration</code>, <code>e2e</code> or <code>security</code></li>
       <li><a href="../CLAUDE.md">CLAUDE.md</a>: checks to run before committing (<code>./check.sh</code>)</li>
     </ul>
   </section>

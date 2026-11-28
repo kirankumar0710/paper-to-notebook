@@ -72,6 +72,7 @@ class TestConverter:
         assert provider.calls == []
 
 
+@pytest.mark.integration
 class TestEndpoints:
     @pytest.fixture
     def client(self):

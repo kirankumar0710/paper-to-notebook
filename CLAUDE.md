@@ -39,6 +39,14 @@ passes:
 - If pip-audit reports a vulnerability, raise that package's minimum
   version in `pyproject.toml` to the fixed release.
 - New code needs tests; keep coverage at 95% or more.
+- Mark tests by level: unmarked tests are `unit`; add
+  `@pytest.mark.integration` (TestClient, subprocess, local server) or
+  `@pytest.mark.e2e` (browser, `tests/e2e/`), plus
+  `@pytest.mark.security` for a test of a security defence. Run a group
+  with `uv run pytest -m <marker>`.
+- E2E tests are excluded by default (`./check.sh`, CI) and run by hand
+  with `./e2e.sh`; two of them call the user's real provider, so don't
+  run `./e2e.sh` or `pytest -m e2e` with a real key unless asked.
 
 ## Tooling
 

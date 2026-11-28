@@ -106,7 +106,10 @@ in place; a change that weakens one needs an explicit reason.
 
 ## 3. Checklist for new code
 
-Answer each that applies before finishing:
+Answer each that applies before finishing. Every test of a defence gets
+`@pytest.mark.security` (on top of its level marker), so
+`uv run pytest -m security` runs them all.
+
 
 - **New endpoint:** Does it change state, cost money or run code? Then
   add `Depends(require_same_origin)` and a test in

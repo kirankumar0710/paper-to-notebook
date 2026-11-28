@@ -188,6 +188,7 @@ class TestSettings:
             ("10.0.0.5", True, True),
         ],
     )
+    @pytest.mark.security
     def test_only_localhost_by_default(self, host, allow_remote, allowed):
         settings = VerifySettings(allow_remote=allow_remote)
         assert verify_allowed(host, settings) is allowed
@@ -231,6 +232,7 @@ class TestSandboxRunner:
         assert '"finished"' in capsys.readouterr().out
 
 
+@pytest.mark.integration
 class TestRunCells:
     def test_all_cells_pass(self):
         events = []
@@ -266,6 +268,7 @@ class TestRunCells:
         )
         assert "Traceback" in result.details
 
+    @pytest.mark.security
     def test_no_api_keys_in_environment(self, monkeypatch):
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-secret")
         result = run_cells(
@@ -617,6 +620,7 @@ class TestVerifyNotebook:
         assert report.status == "error"
         assert "no python" in report.message
 
+    @pytest.mark.integration
     def test_real_run_end_to_end(self):
         spec = {
             **SPEC,
@@ -671,6 +675,7 @@ REPLY = {
 }
 
 
+@pytest.mark.integration
 class TestEndpoints:
     @pytest.fixture
     def client(self, tmp_path, monkeypatch):
@@ -725,11 +730,13 @@ class TestEndpoints:
         events = _parse_sse(self._post(client(default=True)).text)
         assert events[-1][1]["verification"]["status"] == "passed"
 
+    @pytest.mark.security
     def test_remote_client_is_refused(self, client):
         response = self._post(client(allow_remote=False), verify="true")
         assert response.status_code == 403
         assert "localhost" in response.json()["detail"]
 
+    @pytest.mark.security
     def test_remote_default_is_ignored(self, client):
         from test_progress import _parse_sse
 
@@ -774,6 +781,7 @@ class TestEndpoints:
         assert result["usage"]["total_tokens"] == 30
 
 
+@pytest.mark.security
 class TestAllowedPackages:
     """F3: the run check installs only allowed packages."""
 

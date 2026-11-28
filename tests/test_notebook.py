@@ -83,6 +83,7 @@ class TestBuildNotebook:
         notebook = build_notebook(SPEC, note="*Checked.*")
         assert notebook.cells[0].source.endswith("\n\n*Checked.*")
 
+    @pytest.mark.security
     def test_pip_cell_dedupes_and_drops_unsafe_specs(self):
         install = build_notebook(SPEC).cells[1].source
         assert install == "!pip install -q einops 'torch>=2.0'"
@@ -112,6 +113,7 @@ class TestBuildNotebook:
             {**SPEC, "cells": [{"cell_type": "code"}]},
         ],
     )
+    @pytest.mark.security
     def test_invalid_spec(self, bad_spec):
         with pytest.raises(ValueError):
             build_notebook(bad_spec)
@@ -166,6 +168,7 @@ def _convert(provider, **upload_kwargs):
     )
 
 
+@pytest.mark.integration
 class TestConvertEndpoint:
     def test_returns_colab_notebook(self):
         response = _convert(FakeProvider())
@@ -219,6 +222,7 @@ class TestConvertEndpoint:
         assert "unusable notebook" in info.value.detail
 
 
+@pytest.mark.integration
 class TestApiExtras:
     def test_health(self):
         assert asyncio.run(health()) == {
@@ -226,6 +230,7 @@ class TestApiExtras:
             "version": VERSION,
         }
 
+    @pytest.mark.security
     def test_rejects_large_upload(self, monkeypatch):
         import api.routes.convert as convert_routes
 
@@ -257,6 +262,7 @@ class TestApiExtras:
             get_llm_provider.cache_clear()
 
 
+@pytest.mark.integration
 class TestHttp:
     """Exercise /convert over HTTP, as the Swagger UI and curl do."""
 
@@ -305,6 +311,7 @@ class TestHttp:
         assert file_field["format"] == "binary"
 
 
+@pytest.mark.integration
 class TestSavedCopy:
     def test_notebook_saved_on_server(self, notebook_output_dir):
         response = _convert(FakeProvider(), filename="2403.03507v2.pdf")
@@ -370,6 +377,7 @@ class TestSavedCopy:
         ):
             assert client.get(path).status_code == 200, path
 
+    @pytest.mark.security
     def test_include_outside_static_dir_is_refused(self, tmp_path):
         from api.routes.dashboard import render_page
 
@@ -424,6 +432,7 @@ class TestSavedCopy:
             assert (body.group(1) is None) == (tab == default)
 
 
+@pytest.mark.integration
 class TestRequiredConfiguration:
     @pytest.fixture(autouse=True)
     def configured(self, monkeypatch):

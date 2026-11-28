@@ -65,6 +65,7 @@ class TestConfigFile:
         assert config["anthropic"]["max_tokens"] == 128000
         assert config["gemini"]["base_url"].endswith("/v1beta")
 
+    @pytest.mark.security
     def test_no_api_keys_in_vendor_file(self):
         config = load_config()
         for table in config.values():
@@ -218,6 +219,7 @@ class TestResolveSettings:
         with pytest.raises(ValueError, match="PROVIDER_MODEL"):
             resolve_settings("anthropic", config=load_config(path))
 
+    @pytest.mark.security
     def test_repr_hides_key(self, monkeypatch):
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-secret")
         assert "sk-secret" not in repr(resolve_settings("anthropic"))

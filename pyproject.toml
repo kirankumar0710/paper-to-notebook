@@ -27,6 +27,7 @@ dependencies = [
 dev = [
     "pytest>=7.4.0",
     "pytest-cov>=5.0",
+    "playwright>=1.49",
     "ruff>=0.1.0",
 ]
 
@@ -64,6 +65,18 @@ select = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+# Every test is one of unit / integration / e2e (unmarked tests are made
+# "unit" in tests/conftest.py); "security" is added on top of that.
+# Select with -m, e.g. `pytest -m unit` or `pytest -m "security"`.
+# The e2e (browser) tests are left out by default, so ./check.sh and CI
+# never run them; run them by hand with ./e2e.sh (a later -m wins).
+addopts = '--strict-markers -m "not e2e"'
+markers = [
+    "unit: one function or class, no server, subprocess or network",
+    "integration: through the FastAPI app, a subprocess or a local server",
+    "e2e: the real dashboard in headless Chrome against a live server",
+    "security: tests a security defence (see docs/security.html)",
+]
 
 [tool.coverage.run]
 source = ["."]

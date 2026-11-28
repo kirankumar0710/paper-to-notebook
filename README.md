@@ -70,8 +70,8 @@ variables, in increasing order of priority. `PROVIDER` and API keys
 come only from the environment.
 
 <mark><b>Docs:</b></mark> [docs/index.html](docs/index.html): the overview,
-[architecture](docs/architecture.html), [UI architecture](docs/ui-architecture.html)
-and [security hardening](docs/security.html)
+[architecture](docs/architecture.html), [UI architecture](docs/ui-architecture.html),
+[security hardening](docs/security.html) and [tests](docs/testing.html)
 
 <mark><b>Example:</b></mark> [non-linear activation functions.pdf](example/non-linear%20activation%20functions.pdf)
 → [non-linear activation functions.ipynb](example/non-linear%20activation%20functions.ipynb),
@@ -444,10 +444,96 @@ reply, or `LOG_LEVEL=WARNING` to log only problems.
 ## Tests
 
 ```bash
-pytest -v --cov      # fails if coverage drops below 95%
+uv run pytest -v --cov      # all but E2E; fails if coverage drops below 95%
+./e2e.sh                    # E2E browser tests, by hand only (see below)
 ```
 
-The tests use fake LLM clients, so they make no API calls and need no keys.
+Apart from two opt-in E2E tests, the tests use fake LLM clients, so they
+make no API calls and need no keys.
+
+`./check.sh` runs everything CI runs (ruff lint with the bandit `S` rules,
+ruff format, pip-audit, Semgrep, and these tests with coverage) and ends
+with a summary: each check, its type, result, counts and time, e.g.
+
+```
+passed  Static analysis (semgrep)                   4s
+        Security patterns (SAST)
+        495 rules on 85 files: 0 findings
+passed  Tests (pytest + coverage)                  15s
+        Unit, integration, security tests
+        448 passed, 5 deselected (E2E: run ./e2e.sh); unit 328 (328 passed);
+        integration 120 (120 passed); security 113 (113 passed); coverage:
+        97.84% (min 95%)
+```
+
+In GitHub Actions the same summary appears as a table on the run's page.
+It is information only: pass/fail and the exit code are unchanged.
+
+Every test has one level marker, and security tests have a second one, so
+you can run a group with `-m`:
+
+| Marker | What it covers | Run |
+|---|---|---|
+| `unit` | One function or class; no server, subprocess or network. Tests without a level marker are made `unit` in `tests/conftest.py`. | `uv run pytest -m unit` |
+| `integration` | Through the FastAPI app (`TestClient`), a real subprocess (the run check's sandbox) or a local HTTP server | `uv run pytest -m integration` |
+| `e2e` | The real dashboard in headless Chrome (Playwright) against a live server (`tests/e2e/`). Not run by default, by `./check.sh` or in CI | `./e2e.sh` |
+| `security` | A security defence from [docs/security.html](docs/security.html), at any level | `uv run pytest -m security` |
+
+Markers combine, e.g. `-m "unit and not security"`. Mark a new test with `@pytest.mark.integration` or
+`@pytest.mark.e2e` (and `@pytest.mark.security` if it tests a defence);
+unknown markers are an error (`--strict-markers`).
+
+### E2E tests (by hand only)
+
+`pyproject.toml` leaves the `e2e` tests out of every default run, so
+`./check.sh` and CI never run them. Run them with:
+
+```bash
+./e2e.sh             # provider, key and model: from the env, else asks
+./e2e.sh -k arxiv    # extra arguments go to pytest
+```
+
+- **Dashboard tests** (3) use a scripted model: no key, no cost. They check
+  the page loads with no CSP violations or errors, tabs work, nothing
+  scrolls at 1440×900, and a conversion gets past the security guards.
+- **Real conversions** (2) use the provider you choose and
+  `example/non-linear activation functions.pdf` (1 page):
+  - upload the PDF and convert;
+  - paste an arXiv link and convert. The MCP server and download are
+    faked and return the same example PDF, so arXiv is never contacted,
+    but the real lookup code runs and the MCP log tab fills in.
+
+  Each records its tokens and cost (never a pass/fail).
+- **Provider and key:** `./e2e.sh` checks the environment first:
+  `PROVIDER`, then that provider's key (e.g. `ANTHROPIC_API_KEY`), then
+  `PROVIDER_MODEL`. It reports each one it finds (the key only as
+  "found", never shown) and asks for each one missing. If no provider or
+  no key is given, it exits without running anything.
+
+  ```
+  Provider: anthropic (found in $PROVIDER)
+  ANTHROPIC_API_KEY is not set.
+  ANTHROPIC_API_KEY (hidden):
+  Model [claude-sonnet-5-5]:
+  ```
+- **Keys:** a typed key is read without echoing, passed only to that test
+  run, and never written to a file. To run just the three free dashboard
+  tests without a key, use `uv run pytest -m e2e`.
+- **Summary:** after the run it prints each test's result (green passed,
+  red failed, yellow skipped), whether it used the scripted or the real
+  model, and its time; for each real conversion a line like
+
+  ```
+  provider : anthropic  model: claude-sonnet-5-5: 8,028 tokens, cost $0.04, 13 cells
+  ```
+
+  then the test counts and the total tokens and cost.
+- **Cost:** it suggests a cheaper model (e.g. `claude-sonnet-5-5`) and, for
+  Claude, standard speed instead of fast.
+- **Browser:** the installed Google Chrome, or Playwright's Chromium
+  (`uv run playwright install chromium`); without either they are skipped.
+
+See [docs/testing.html](docs/testing.html) for what each file covers.
 
 ## Project Structure
 
@@ -495,8 +581,8 @@ The tests use fake LLM clients, so they make no API calls and need no keys.
 │   ├── pricing.py          # Cost estimate from [pricing]
 │   ├── text_utils.py       # Safe filenames
 │   └── url_utils.py        # Split API version off base URLs
-├── docs/                   # index.html: overview, architecture, UI, security
-├── tests/
+├── docs/                   # index.html: overview, architecture, UI, security, tests
+├── tests/                  # unit, integration, security; e2e/ for the browser
 ├── config.toml             # Provider defaults and prices (no keys)
 ├── output/                 # Saved notebooks (git-ignored)
 ├── pyproject.toml

@@ -173,6 +173,7 @@ def flaky_server(monkeypatch):
     server.shutdown()
 
 
+@pytest.mark.integration
 class TestGeminiRetriesForReal:
     def _provider(self, server):
         host, port = server.server_address
@@ -192,6 +193,7 @@ class TestGeminiRetriesForReal:
         assert _FlakyGemini.requests == MAX_ATTEMPTS
 
 
+@pytest.mark.integration
 class TestApiResponse:
     def test_temporary_failure_is_503_with_retry_after(self):
         from test_notebook import FakeProvider, _convert

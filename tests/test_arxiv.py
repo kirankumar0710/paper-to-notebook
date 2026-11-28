@@ -194,6 +194,7 @@ class TestSettings:
             load_arxiv_settings({"arxiv": section})
 
 
+@pytest.mark.security
 class TestSafePdfUrl:
     def test_arxiv_url_upgraded_to_https(self):
         assert (
@@ -381,6 +382,7 @@ class TestFetch:
         assert text in str(error)
         assert log.since()["events"][-1]["kind"] == "error"
 
+    @pytest.mark.security
     def test_redirect_away_from_arxiv_is_refused(self):
         def handler(request):
             if request.url.host == "arxiv.org":
@@ -396,6 +398,7 @@ class TestFetch:
         assert "redirected away from arXiv" in str(error)
         assert "evil.example" in str(error)
 
+    @pytest.mark.security
     def test_redirect_within_arxiv_is_followed(self):
         def handler(request):
             if request.url.host == "arxiv.org":
@@ -411,6 +414,7 @@ class TestFetch:
         _, paper = fetch(session=FakeSession(), client=client)
         assert paper.pdf == PDF
 
+    @pytest.mark.security
     def test_pdf_too_large(self):
         error, _ = fetch_error(client=http(body=PDF * 10), max_bytes=50)
         assert error.status_code == 400
@@ -475,6 +479,7 @@ def client(monkeypatch):
         api_main.app.dependency_overrides.clear()
 
 
+@pytest.mark.integration
 class TestEndpoints:
     def test_convert_from_arxiv_link(self, client):
         response = client.post(

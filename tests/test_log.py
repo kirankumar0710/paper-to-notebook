@@ -20,6 +20,7 @@ def clean_env(monkeypatch):
         monkeypatch.delenv(var, raising=False)
 
 
+@pytest.mark.security
 class TestMaskSecret:
     @pytest.mark.parametrize(
         ("value", "expected"),
@@ -72,6 +73,7 @@ class TestConfigureLogging:
         assert line.endswith("[providers.claude] hello")
 
 
+@pytest.mark.security
 class TestDescribeKey:
     def test_found(self):
         settings = ProviderSettings(
@@ -137,6 +139,7 @@ class TestWhatIsLogged:
         )
         assert "Built notebook 'paper.ipynb' with 5 cells" in messages
 
+    @pytest.mark.security
     def test_key_never_logged_in_full(self, caplog, monkeypatch):
         monkeypatch.setenv("ANTHROPIC_API_KEY", SECRET)
         monkeypatch.setenv("GEMINI_API_KEY", SECRET)

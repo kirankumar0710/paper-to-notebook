@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Paper to Notebook Tests</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  /* Same tokens as architecture.html */
+  :root {
+    --bg: #f6f7f9; --surface: #ffffff; --fg: #1b2230; --muted: #5c6678;
+    --line: #b9c1ce; --zone: #eceff4; --accent: #2456c9; --accent-soft: #dfe7fb;
+    --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12161d; --surface: #1a2029; --fg: #e3e8f0; --muted: #98a3b5;
+      --line: #445064; --zone: #171c24; --accent: #8cafff; --accent-soft: #22324f;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12161d; --surface: #1a2029; --fg: #e3e8f0; --muted: #98a3b5;
+    --line: #445064; --zone: #171c24; --accent: #8cafff; --accent-soft: #22324f;
+    color-scheme: dark;
+  }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+    font-family: var(--font-sans); font-size: 15px; line-height: 1.55; }
+  .page { max-width: 1100px; margin: 0 auto; padding-block: 40px 64px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: grid; gap: 40px; }
+  header { display: grid; gap: 8px; max-width: 72ch; }
+  .back { font-size: 14px; color: var(--accent); text-decoration: none; }
+  .back:hover, .back:focus-visible { text-decoration: underline; }
+  .eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0; }
+  h1 { font-size: 30px; line-height: 1.2; font-weight: 600; margin: 0; }
+  h2 { font-size: 19px; font-weight: 600; margin: 0; }
+  h3 { font-size: 16px; font-weight: 600; margin: 6px 0 0; }
+  p { margin: 0; }
+  .lede { color: var(--muted); }
+  a { color: var(--accent); }
+  code { font-family: var(--font-mono); font-size: 0.9em; }
+  section { display: grid; gap: 14px; min-width: 0; }
+  section > p, section > ul, section > ol { max-width: 76ch; }
+  section[id] { scroll-margin-top: 16px; }
+  ul, ol { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+
+  .toc { display: grid; gap: 8px; }
+  .toc ol { font-size: 16px; gap: 4px; }
+  .toc a { text-decoration: none; }
+  .toc a:hover, .toc a:focus-visible { text-decoration: underline; }
+
+  .table { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 12px;
+    border-bottom: 1px solid var(--line); }
+  tr:last-child td { border-bottom: 0; }
+  th { font-weight: 600; color: var(--muted); font-size: 12px;
+    font-family: var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; }
+  td code { overflow-wrap: anywhere; font-size: 12.5px; }
+
+  pre { margin: 0; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 8px; padding: 12px 14px; overflow: auto; font-size: 12.5px;
+    line-height: 1.5; }
+  pre code { font-size: inherit; }
+  .note { font-size: 14px; color: var(--muted); max-width: 76ch; }
+
+  .layers { display: grid; gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); }
+  .layer { background: var(--surface); border: 1px solid var(--line);
+    border-radius: 10px; padding: 14px 16px; display: grid; gap: 6px;
+    align-content: start; }
+  .layer h3 { margin: 0; font-size: 15px; }
+  .layer p { font-size: 14px; color: var(--muted); }
+  .layer .when { font: 600 11px var(--font-mono); letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--accent); }
+
+  /* Test levels: one colour each, in both themes. */
+  :root { --unit: #2456c9; --integ: #0f766e; --e2e: #b45309; --sec: #9f1239; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --unit: #8cafff; --integ: #2dd4bf;
+      --e2e: #fbbf24; --sec: #fb7185; }
+  }
+  :root[data-theme="dark"] { --unit: #8cafff; --integ: #2dd4bf;
+    --e2e: #fbbf24; --sec: #fb7185; }
+  .stats { display: grid; gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); }
+  .stat { background: var(--surface); border: 1px solid var(--line);
+    border-left: 4px solid var(--c); border-radius: 10px; padding: 12px 16px;
+    display: grid; gap: 2px; }
+  .stat b { font: 600 26px var(--font-mono); color: var(--c); }
+  .stat span { font-size: 13px; color: var(--muted); }
+  .unit { --c: var(--unit); } .integ { --c: var(--integ); }
+  .e2e { --c: var(--e2e); } .sec { --c: var(--sec); }
+  .layer { border-top: 4px solid var(--c); }
+  .layer .when { color: var(--c); }
+  .bar { display: flex; height: 10px; border-radius: 999px; overflow: hidden;
+    background: var(--zone); min-width: 120px; }
+  .bar i { display: block; background: var(--c); }
+  td:first-child code { white-space: nowrap; overflow-wrap: normal; }
+  .num { font-family: var(--font-mono); text-align: right; white-space: nowrap; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px;
+    color: var(--muted); }
+  .legend span::before { content: ""; display: inline-block; width: 10px;
+    height: 10px; border-radius: 3px; background: var(--c);
+    margin-right: 6px; vertical-align: -1px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <a class="back" href="index.html">← Docs</a>
+    <p class="eyebrow">paper-to-notebook · tests</p>
+    <h1>Tests</h1>
+    <p class="lede">How the 462 tests are organised and how to run them. Every test has one level, unit, integration or end-to-end (E2E), and tests of a security defence also carry a security marker. Apart from two opt-in E2E conversions, the tests use scripted models, so they make no API calls and need no keys.</p>
+  </header>
+
+  <div class="stats">
+    <div class="stat unit"><b>337</b><span>unit</span></div>
+    <div class="stat integ"><b>120</b><span>integration</span></div>
+    <div class="stat e2e"><b>5</b><span>E2E browser, by hand only</span></div>
+    <div class="stat sec"><b>114</b><span>security (at any level)</span></div>
+  </div>
+
+  <nav class="toc" aria-label="Contents">
+    <p class="eyebrow">Contents</p>
+    <ol>
+      <li><a href="#levels">Test levels and the security marker</a></li>
+      <li><a href="#run">Running a group</a></li>
+      <li><a href="#files">What each file covers</a></li>
+      <li><a href="#security">Security tests</a></li>
+      <li><a href="#e2e">The E2E browser tests</a></li>
+      <li><a href="#fakes">Fakes, isolation and the only real API calls</a></li>
+      <li><a href="#new">Adding a test</a></li>
+      <li><a href="#ci">Coverage and CI</a></li>
+    </ol>
+  </nav>
+
+  <section id="levels">
+    <h2>1. Test levels and the security marker</h2>
+    <p>Tests are grouped with pytest markers rather than separate folders: most files test one feature at several levels (<code>test_verify.py</code> has unit tests, real subprocess runs, HTTP tests and security tests), and a security test is also a unit or integration test. The markers are registered in <code>pyproject.toml</code> with <code>--strict-markers</code>, so a misspelt marker is an error.</p>
+    <div class="layers">
+      <div class="layer unit"><span class="when">Default · no decorator</span><h3><code>unit</code></h3><p>One function or class, with fakes for everything around it. No server, subprocess or network. Tests without a level marker are marked <code>unit</code> in <code>tests/conftest.py</code>.</p></div>
+      <div class="layer integ"><span class="when"><code>@pytest.mark.integration</code></span><h3><code>integration</code></h3><p>Several parts together: requests through the FastAPI app (<code>TestClient</code>, with all middleware), the run check's real sandbox subprocess, or a real local HTTP server.</p></div>
+      <div class="layer e2e"><span class="when"><code>@pytest.mark.e2e</code></span><h3><code>e2e</code></h3><p>The real dashboard in headless Chrome (Playwright) against a live server, the way a user uses it. In <code>tests/e2e/</code>. Never run by default, by <code>./check.sh</code> or in CI; run with <code>./e2e.sh</code>.</p></div>
+      <div class="layer sec"><span class="when"><code>@pytest.mark.security</code> · added on top</span><h3><code>security</code></h3><p>Tests a defence described in <a href="security.html">Security hardening</a>. It combines with a level marker, so <code>-m "unit and security"</code> works.</p></div>
+    </div>
+  </section>
+
+  <section id="run">
+    <h2>2. Running a group</h2>
+    <div class="table"><table>
+      <thead><tr><th>Command</th><th>Runs</th></tr></thead>
+      <tbody>
+        <tr><td><code>./check.sh</code></td><td>Every test except E2E, with coverage, after lint, format, pip-audit and Semgrep. This is what CI runs.</td></tr>
+        <tr><td><code>uv run pytest</code></td><td>All 457 tests except E2E (left out by default in <code>pyproject.toml</code>)</td></tr>
+        <tr><td><code>uv run pytest -m unit</code></td><td>337 unit tests (about 1 second)</td></tr>
+        <tr><td><code>uv run pytest -m integration</code></td><td>120 integration tests</td></tr>
+        <tr><td><code>./e2e.sh</code></td><td>The 5 browser tests; takes provider, key and model from the environment or asks (see §5)</td></tr>
+        <tr><td><code>uv run pytest -m security</code></td><td>114 security tests, at every level</td></tr>
+        <tr><td><code>uv run pytest --co -q -m security</code></td><td>Lists the tests in a group without running them</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="files">
+    <h2>3. What each file covers</h2>
+    <div class="legend"><span class="unit">unit</span><span class="integ">integration</span><span class="e2e">E2E</span></div>
+    <div class="table"><table>
+      <thead><tr><th>File (in <code>tests/</code>)</th><th>Covers</th><th>Total</th><th>Unit</th><th>Integ.</th><th>E2E</th><th>Security</th><th>Mix</th></tr></thead>
+      <tbody>
+        <tr><td><code>test_arxiv.py</code></td><td>arXiv ID parsing, the MCP lookup and its event log, PDF download (redirects, size), the arXiv endpoints</td><td class="num">62</td><td class="num">52</td><td class="num">10</td><td class="num">0</td><td class="num">8</td><td><div class="bar" aria-hidden="true"><i class="unit" style="width:83.9%"></i><i class="integ" style="width:16.1%"></i></div></td></tr>
+        <tr><td><code>test_depth.py</code></td><td>Notebook depth: prompt text, converter, form field</td><td class="num">14</td><td class="num">8</td><td class="num">6</td><td class="num">0</td><td class="num">0</td><td><div class="bar" aria-hidden="true"><i class="unit" style="width:57.1%"></i><i class="integ" style="width:42.9%"></i></div></td></tr>
+        <tr><td><code>test_log.py</code></td><td>Logging setup, key masking, what is logged</td><td class="num">14</td><td class="num">14</td><td class="num">0</td><td class="num">0</td><td class="num">7</td><td><div class="bar" aria-hidden="true"><i class="unit" style="width:100.0%"></i></div></td></tr>
+        <tr><td><code>test_metrics.py</code></td><td>Pricing, page count, notebook facts, metrics in the stream</td><td class="num">16</td><td class="num">14</td><td class="num">2</td><td class="num">0</td><td class="num">0</td><td><div class="bar" aria-hidden="true"><i class="unit" style="width:87.5%"></i><i class="integ" style="width:12.5%"></i></div></td></tr>
+        <tr><td><code>test_notebook.py</code></td><td>Building the notebook, /convert, the dashboard page and its includes, saved copies, required configuration</td><td class="num">49</td><td class="num">17</td><td class="num">32</td><td class="num">0</td><td class="num">7</td><td><div class="bar" aria-hidden="true"><i class="unit" style="width:34.7%"></i><i class="integ" style="width:65.3%"></i></div></td></tr>
+        <tr><td><code>test_openai.py</code></td><td>OpenAI provider requests, replies and errors</td><td class="num">22</td><td class="num">22</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td><div class="bar" aria-hidden="true"><i class="unit" style="width:100.0%"></i></div></td></tr>
+        <tr><td><code>test_progress.py</code></td><td>Provider options, fast mode, progress callbacks, /convert/stream, /api/config</td><td class="num">35</td><td class="num">22</td><td class="num">13</td><td class="num">0</td><td class="num">1</td><td><div class="bar" aria-hidden="true"><i class="unit" style="width:62.9%"></i><i class="integ" style="width:37.1%"></i></div></td></tr>
+        <tr><td><code>test_providers.py</code></td><td>Config files, key variables, provider resolution, Claude and Gemini providers, output folder</td><td class="num">62</td><td class="num">62</td><td class="num">0</td><td class="num">0</td><td class="num">2</td><td><div class="bar" aria-hidden="true"><i class="unit" style="width:100.0%"></i></div></td></tr>
+        <tr><td><code>test_retries.py</code></td><td>Retry settings, which errors retry, retries against a real local HTTP server</td><td class="num">13</td><td class="num">10</td><td class="num">3</td><td class="num">0</td><td class="num">0</td><td><div class="bar" aria-hidden="true"><i class="unit" style="width:76.9%"></i><i class="integ" style="width:23.1%"></i></div></td></tr>
+        <tr><td><code>test_run.py</code></td><td>run.py: venv setup, startup warnings, server start</td><td class="num">9</td><td class="num">9</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td><div class="bar" aria-hidden="true"><i class="unit" style="width:100.0%"></i></div></td></tr>
+        <tr><td><code>test_run_summary.py</code></td><td>The E2E run summary and the JSON report behind it</td><td class="num">9</td><td class="num">9</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td><div class="bar" aria-hidden="true"><i class="unit" style="width:100.0%"></i></div></td></tr>
+        <tr><td><code>test_security.py</code></td><td>Cross-site guard, CORS, DNS rebinding, host allow-list, headers, conversion slots, upload reading</td><td class="num">62</td><td class="num">25</td><td class="num">37</td><td class="num">0</td><td class="num">62</td><td><div class="bar" aria-hidden="true"><i class="unit" style="width:40.3%"></i><i class="integ" style="width:59.7%"></i></div></td></tr>
+        <tr><td><code>test_util.py</code></td><td>Safe filenames, never overwriting a saved file, the per-type test summary</td><td class="num">10</td><td class="num">10</td><td class="num">0</td><td class="num">0</td><td class="num">7</td><td><div class="bar" aria-hidden="true"><i class="unit" style="width:100.0%"></i></div></td></tr>
+        <tr><td><code>test_verify.py</code></td><td>Run check: settings, sandbox runner, running cells in a real subprocess, repairs, package allow-list, endpoint</td><td class="num">80</td><td class="num">63</td><td class="num">17</td><td class="num">0</td><td class="num">19</td><td><div class="bar" aria-hidden="true"><i class="unit" style="width:78.8%"></i><i class="integ" style="width:21.2%"></i></div></td></tr>
+        <tr><td><code>e2e/test_dashboard.py</code></td><td>The real dashboard in headless Chrome; two conversions with a real model (by hand only)</td><td class="num">5</td><td class="num">0</td><td class="num">0</td><td class="num">5</td><td class="num">1</td><td><div class="bar" aria-hidden="true"><i class="e2e" style="width:100.0%"></i></div></td></tr>
+        <tr><td><strong>Total</strong></td><td></td><td class="num"><strong>462</strong></td><td class="num">337</td><td class="num">120</td><td class="num">5</td><td class="num">114</td><td><div class="bar" aria-hidden="true"><i class="unit" style="width:72.9%"></i><i class="integ" style="width:26.0%"></i><i class="e2e" style="width:1.1%"></i></div></td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">Counts are per test case, so each parametrized case counts once.</p>
+  </section>
+
+  <section id="security">
+    <h2>4. Security tests</h2>
+    <p>Each defence on the <a href="security.html">security page</a> has tests that would fail if it were removed. <code>uv run pytest -m security</code> runs them all.</p>
+    <div class="table"><table>
+      <thead><tr><th>Defence</th><th>Tested by</th></tr></thead>
+      <tbody>
+        <tr><td>Cross-site guard, no CORS (<a href="security.html#cross-site">§3</a>)</td><td>Cross-site, same-site and <code>null</code> origins get 403 on both convert endpoints before any work; same-origin and scripts are allowed; no <code>Access-Control-Allow-*</code> headers (<code>test_security.py</code>)</td></tr>
+        <tr><td>DNS rebinding, host allow-list (<a href="security.html#cross-site">§3</a>)</td><td>Loopback hosts are served; rebound hosts get 400 on reads and on <code>POST /convert</code>; configured hosts; the run check needs a localhost <code>Host</code> (<code>test_security.py</code>, <code>test_verify.py</code>)</td></tr>
+        <tr><td>Security headers (<a href="security.html#headers">§4</a>)</td><td>CSP and other headers on the dashboard and API; HSTS only over HTTPS; the browser test checks the dashboard has no CSP violations (<code>test_security.py</code>, <code>e2e/</code>)</td></tr>
+        <tr><td>Run check (<a href="security.html#agentic">§5</a>)</td><td>Localhost only by default; no API keys in the sandbox environment; package allow-list (<code>test_verify.py</code>)</td></tr>
+        <tr><td>Model output (<a href="security.html#injection">§6</a>)</td><td>Unsafe package specs are dropped from the install cell (<code>test_notebook.py</code>)</td></tr>
+        <tr><td>API keys (<a href="security.html#keys">§7</a>)</td><td>Masked in logs and <code>repr</code>; never returned by <code>/api/config</code>; none in <code>config.toml</code> (<code>test_log.py</code>, <code>test_providers.py</code>, <code>test_progress.py</code>)</td></tr>
+        <tr><td>Input, files and paths (<a href="security.html#input">§8</a>)</td><td>Upload size and reading limit; arXiv redirects away from arxiv.org refused; page includes stay in <code>api/static/</code>; safe filenames; saves never overwrite (<code>test_arxiv.py</code>, <code>test_notebook.py</code>, <code>test_util.py</code>, <code>test_security.py</code>)</td></tr>
+        <tr><td>Cost limits (<a href="security.html#limits">§9</a>)</td><td>Extra conversions get 429; slots are released after success and failure; bad uploads take no slot (<code>test_security.py</code>)</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="e2e">
+    <h2>5. The E2E browser tests</h2>
+    <p><code>tests/e2e/test_dashboard.py</code> runs the real app (all middleware, the real page) on a free <code>127.0.0.1</code> port in a background thread, and Playwright opens it at 1440×900. <code>pyproject.toml</code> leaves these tests out of every default run, so <code>./check.sh</code> and CI never run them; run them by hand:</p>
+    <pre><code>./e2e.sh             # provider, key and model: from the env, else asks
+./e2e.sh -k arxiv    # extra arguments go to pytest</code></pre>
+    <div class="table"><table>
+      <thead><tr><th>Test</th><th>Model</th><th>Checks</th></tr></thead>
+      <tbody>
+        <tr><td><code>test_dashboard_loads_under_the_csp</code></td><td>Scripted</td><td>The page loads on the Upload tab with no CSP violations or JavaScript errors, and fits one screen</td></tr>
+        <tr><td><code>test_tabs_switch_panels</code></td><td>Scripted</td><td>Configuration, Download and Metrics tabs switch panels; still no page scroll</td></tr>
+        <tr><td><code>test_scripted_conversion_passes_the_guards</code> <em>(also security)</em></td><td>Scripted</td><td>Upload the example PDF and convert: the same-origin guard and the CSP let the dashboard through</td></tr>
+        <tr><td><code>test_upload_example_pdf_with_real_model</code></td><td>Real</td><td>Upload <code>example/non-linear activation functions.pdf</code> (1 page), convert, download the <code>.ipynb</code> and check it has markdown and code cells</td></tr>
+        <tr><td><code>test_arxiv_link_with_faked_mcp</code></td><td>Real</td><td>Paste an arXiv link and convert. The MCP server and the download are faked and return the same example PDF, so arXiv is never contacted, but the real lookup code runs and the MCP log tab fills in</td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li><strong>Provider and key:</strong> <code>./e2e.sh</code> checks the environment first: <code>PROVIDER</code>, then that provider's key (e.g. <code>ANTHROPIC_API_KEY</code>), then <code>PROVIDER_MODEL</code>. It reports each one it finds (the key only as "found", never shown) and asks for each one missing; a typed key is hidden, passed only to that test run, and never written to a file or logged in full.</li>
+      <li><strong>No provider or no key given:</strong> it exits without running anything. To run only the three free dashboard tests without a key, use <code>uv run pytest -m e2e</code>; the two real conversions then skip.</li>
+      <li><strong>Summary:</strong> after the run, <code>./e2e.sh</code> prints a summary (green passed, red failed, yellow skipped): each test with its result, scripted or real model, and time; for each real conversion a line like <code>provider : anthropic  model: claude-sonnet-5-5: 8,028 tokens, cost $0.04, 13 cells</code>; then the test counts and the total tokens and cost. The tests write their results to a temporary JSON file (<code>TEST_REPORT_JSON</code>, via the <code>run_note</code> fixture) that the summary reads.</li>
+      <li><strong>Cost:</strong> taken from the Metrics tab; information only, it never fails a test. To keep it low, the script suggests a cheaper model (e.g. <code>claude-sonnet-5-5</code>), uses standard speed for Claude, and the example paper is one page.</li>
+      <li><strong>Browser:</strong> the installed Google Chrome, else Playwright's Chromium (<code>uv run playwright install chromium</code>); without either the tests are skipped.</li>
+      <li><strong>CSP probe:</strong> a script added before the page loads records every <code>securitypolicyviolation</code>; the tests require none.</li>
+      <li><strong>Waits use locators</strong> (<code>expect(...).to_be_visible()</code>), not <code>wait_for_function</code>: the dashboard's CSP forbids <code>eval</code>, which that call needs.</li>
+    </ul>
+  </section>
+
+  <section id="fakes">
+    <h2>6. Fakes, isolation and the only real API calls</h2>
+    <ul>
+      <li><strong>Models:</strong> fake providers (<code>FakeProvider</code>, <code>RepairProvider</code>, <code>ScriptedModel</code>) or fake vendor clients return fixed replies, so no test in <code>./check.sh</code> or CI calls Anthropic, Gemini or OpenAI, and none needs a key.</li>
+      <li><strong>The only real API calls:</strong> the two E2E conversions, run by hand with <code>./e2e.sh</code>. Their fixture (<code>real_server</code>) skips the test when no provider or key is set, so they can never run, or fail, by accident.</li>
+      <li><strong>arXiv:</strong> the MCP server and arxiv.org are always replaced with fakes (<code>FakeSession</code>, <code>httpx.MockTransport</code>), even in the E2E arXiv test, whose fake (<code>fake_arxiv</code>) returns the example PDF while the real lookup code runs.</li>
+      <li><strong>Output folder:</strong> an autouse fixture saves notebooks to a temporary folder, never the real <code>output/</code>.</li>
+      <li><strong>Host check:</strong> <code>TestClient</code> sends <code>Host: testserver</code>, which is allowed in tests only; the real allow-list is tested in <code>test_security.py</code>.</li>
+      <li><strong>Real processes where it matters:</strong> the run check's sandbox, retries against a local HTTP server, and the browser run for real, because faking them would hide the bugs those tests are for.</li>
+    </ul>
+  </section>
+
+  <section id="new">
+    <h2>7. Adding a test</h2>
+    <ol>
+      <li>Put it in the file for the feature (or <code>tests/e2e/</code> for the browser).</li>
+      <li>Pick the level: nothing for a unit test; <code>@pytest.mark.integration</code> if it uses <code>TestClient</code>, a subprocess or a local server; <code>@pytest.mark.e2e</code> for a browser. Mark a whole class or module (<code>pytestmark = pytest.mark.e2e</code>) when all its tests share a level.</li>
+      <li>Add <code>@pytest.mark.security</code> if it tests a defence. For a new endpoint that changes state or costs money, add a test that a cross-site request gets 403 before any work (see the security-hardening skill).</li>
+      <li>Use a fake model. A browser test that needs a real model takes the <code>real_server</code> fixture (it skips without a provider), uses the example PDF, and prints its cost rather than asserting it. Never put a key in a test.</li>
+      <li>Run <code>./check.sh</code>.</li>
+    </ol>
+    <pre><code>import pytest
+
+@pytest.mark.integration
+@pytest.mark.security
+def test_new_endpoint_refuses_cross_site(client):
+    response = client.post("/new", headers={"Sec-Fetch-Site": "cross-site"})
+    assert response.status_code == 403</code></pre>
+  </section>
+
+  <section id="ci">
+    <h2>8. Coverage and CI</h2>
+    <ul>
+      <li><code>./check.sh</code> runs every test with coverage and fails below 95% (currently 97.8%).</li>
+      <li>CI (<code>.github/workflows/ci.yml</code>) runs <code>./check.sh</code> on every push and pull request to <code>dev-ver-5.0</code>: unit, integration and security tests. E2E tests never run in CI; they need a browser and, for two of them, your API key.</li>
+      <li>Before committing, run <code>./check.sh</code>; while working, a quick <code>uv run pytest -m unit</code> is enough. Run <code>./e2e.sh</code> after dashboard changes.</li>
+    </ul>
+  </section>
+</div>
+</body>
+</html>

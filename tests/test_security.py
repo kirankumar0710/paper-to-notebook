@@ -15,6 +15,9 @@ PDF = b"%PDF-1.7 fake"
 ENDPOINTS = ["/convert", "/convert/stream"]
 
 
+pytestmark = pytest.mark.security
+
+
 @pytest.fixture
 def client():
     provider = FakeProvider()
@@ -49,6 +52,7 @@ def _post(test_client, path, **headers):
         {"Origin": "null"},
     ],
 )
+@pytest.mark.integration
 def test_cross_site_requests_are_refused(client, path, headers):
     test_client, provider = client
     response = _post(test_client, path, **headers)
@@ -71,6 +75,7 @@ def test_cross_site_requests_are_refused(client, path, headers):
         {},
     ],
 )
+@pytest.mark.integration
 def test_same_origin_and_scripts_are_allowed(client, path, headers):
     test_client, provider = client
     response = _post(test_client, path, **headers)
@@ -78,6 +83,7 @@ def test_same_origin_and_scripts_are_allowed(client, path, headers):
     assert len(provider.calls) == 1
 
 
+@pytest.mark.integration
 def test_no_cors_permission_for_other_sites(client):
     test_client, _ = client
     for request in (
@@ -162,6 +168,7 @@ def test_allowed_hosts_from_config(caplog):
     "base_url",
     ["http://localhost:8000", "http://127.0.0.1:8000", "http://[::1]:8000"],
 )
+@pytest.mark.integration
 def test_loopback_hosts_are_served(real_hosts, base_url):
     real_hosts()
     response = TestClient(api_main.app, base_url=base_url).get("/health")
@@ -169,6 +176,7 @@ def test_loopback_hosts_are_served(real_hosts, base_url):
 
 
 @pytest.mark.parametrize("path", ["/", "/api/config", "/api/notebooks"])
+@pytest.mark.integration
 def test_rebinding_host_is_refused(real_hosts, path):
     real_hosts()
     client = TestClient(
@@ -180,6 +188,7 @@ def test_rebinding_host_is_refused(real_hosts, path):
 
 
 @pytest.mark.parametrize("path", ENDPOINTS)
+@pytest.mark.integration
 def test_rebinding_post_is_refused_before_work(client, real_hosts, path):
     _, provider = client
     real_hosts()
@@ -196,6 +205,7 @@ def test_rebinding_post_is_refused_before_work(client, real_hosts, path):
     assert provider.calls == []
 
 
+@pytest.mark.integration
 def test_deploy_host_from_config(real_hosts):
     real_hosts({"app": {"allowed_hosts": ["notebooks.example.com"]}})
     client = TestClient(api_main.app, base_url="https://notebooks.example.com")
@@ -227,6 +237,7 @@ def test_config_does_not_offer_run_check_to_rebound_host():
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.integration
 def test_security_headers_on_dashboard_and_api(client):
     test_client, _ = client
     for path in ("/", "/api/config", "/static/app.js", "/nope"):
@@ -241,6 +252,7 @@ def test_security_headers_on_dashboard_and_api(client):
         assert "strict-transport-security" not in headers
 
 
+@pytest.mark.integration
 def test_docs_keep_their_cdn_but_cannot_be_framed(client):
     test_client, _ = client
     headers = test_client.get("/docs").headers
@@ -248,6 +260,7 @@ def test_docs_keep_their_cdn_but_cannot_be_framed(client):
     assert headers["x-frame-options"] == "DENY"
 
 
+@pytest.mark.integration
 def test_hsts_only_over_https(real_hosts):
     real_hosts({"app": {"allowed_hosts": ["notebooks.example.com"]}})
     client = TestClient(api_main.app, base_url="https://notebooks.example.com")
@@ -306,6 +319,7 @@ import api.routes.convert as convert_routes  # noqa: E402
 
 
 @pytest.mark.parametrize("path", ENDPOINTS)
+@pytest.mark.integration
 def test_too_many_conversions_get_429(client, monkeypatch, path):
     test_client, provider = client
     slots = security.ConversionSlots(limit=1)
@@ -319,6 +333,7 @@ def test_too_many_conversions_get_429(client, monkeypatch, path):
 
 
 @pytest.mark.parametrize("path", ENDPOINTS)
+@pytest.mark.integration
 def test_slot_is_released_after_a_conversion(client, monkeypatch, path):
     test_client, _ = client
     slots = security.ConversionSlots(limit=1)
@@ -328,6 +343,7 @@ def test_slot_is_released_after_a_conversion(client, monkeypatch, path):
     assert slots.active == 0
 
 
+@pytest.mark.integration
 def test_slot_is_released_after_a_failure(monkeypatch):
     from providers import ProviderError
 
@@ -345,6 +361,7 @@ def test_slot_is_released_after_a_failure(monkeypatch):
     assert slots.active == 0
 
 
+@pytest.mark.integration
 def test_bad_upload_does_not_take_a_slot(client, monkeypatch):
     test_client, _ = client
     slots = security.ConversionSlots(limit=1)
