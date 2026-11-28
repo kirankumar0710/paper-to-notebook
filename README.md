@@ -70,7 +70,8 @@ variables, in increasing order of priority. `PROVIDER` and API keys
 come only from the environment.
 
 <mark><b>Docs:</b></mark> [docs/index.html](docs/index.html): the overview,
-[architecture](docs/architecture.html) and [UI architecture](docs/ui-architecture.html)
+[architecture](docs/architecture.html), [UI architecture](docs/ui-architecture.html)
+and [security hardening](docs/security.html)
 
 <mark><b>Example:</b></mark> [non-linear activation functions.pdf](example/non-linear%20activation%20functions.pdf)
 → [non-linear activation functions.ipynb](example/non-linear%20activation%20functions.ipynb),
@@ -494,7 +495,7 @@ The tests use fake LLM clients, so they make no API calls and need no keys.
 │   ├── pricing.py          # Cost estimate from [pricing]
 │   ├── text_utils.py       # Safe filenames
 │   └── url_utils.py        # Split API version off base URLs
-├── docs/                   # index.html: overview, architecture, UI architecture
+├── docs/                   # index.html: overview, architecture, UI, security
 ├── tests/
 ├── config.toml             # Provider defaults and prices (no keys)
 ├── output/                 # Saved notebooks (git-ignored)

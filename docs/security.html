@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Paper to Notebook Security</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  /* Same tokens as architecture.html */
+  :root {
+    --bg: #f6f7f9; --surface: #ffffff; --fg: #1b2230; --muted: #5c6678;
+    --line: #b9c1ce; --zone: #eceff4; --accent: #2456c9; --accent-soft: #dfe7fb;
+    --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12161d; --surface: #1a2029; --fg: #e3e8f0; --muted: #98a3b5;
+      --line: #445064; --zone: #171c24; --accent: #8cafff; --accent-soft: #22324f;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12161d; --surface: #1a2029; --fg: #e3e8f0; --muted: #98a3b5;
+    --line: #445064; --zone: #171c24; --accent: #8cafff; --accent-soft: #22324f;
+    color-scheme: dark;
+  }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+    font-family: var(--font-sans); font-size: 15px; line-height: 1.55; }
+  .page { max-width: 1100px; margin: 0 auto; padding-block: 40px 64px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: grid; gap: 40px; }
+  header { display: grid; gap: 8px; max-width: 72ch; }
+  .back { font-size: 14px; color: var(--accent); text-decoration: none; }
+  .back:hover, .back:focus-visible { text-decoration: underline; }
+  .eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0; }
+  h1 { font-size: 30px; line-height: 1.2; font-weight: 600; margin: 0; }
+  h2 { font-size: 19px; font-weight: 600; margin: 0; }
+  h3 { font-size: 16px; font-weight: 600; margin: 6px 0 0; }
+  p { margin: 0; }
+  .lede { color: var(--muted); }
+  a { color: var(--accent); }
+  code { font-family: var(--font-mono); font-size: 0.9em; }
+  section { display: grid; gap: 14px; min-width: 0; }
+  section > p, section > ul, section > ol { max-width: 76ch; }
+  section[id] { scroll-margin-top: 16px; }
+  ul, ol { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+
+  .toc { display: grid; gap: 8px; }
+  .toc ol { font-size: 16px; gap: 4px; }
+  .toc a { text-decoration: none; }
+  .toc a:hover, .toc a:focus-visible { text-decoration: underline; }
+
+  .table { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 12px;
+    border-bottom: 1px solid var(--line); }
+  tr:last-child td { border-bottom: 0; }
+  th { font-weight: 600; color: var(--muted); font-size: 12px;
+    font-family: var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; }
+  td code { overflow-wrap: anywhere; font-size: 12.5px; }
+
+  pre { margin: 0; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 8px; padding: 12px 14px; overflow: auto; font-size: 12.5px;
+    line-height: 1.5; }
+  pre code { font-size: inherit; }
+  .note { font-size: 14px; color: var(--muted); max-width: 76ch; }
+
+  /* Event flow: events on the left, the panel methods they call on the right. */
+  .flow { display: grid; gap: 10px; }
+  .flow-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px;
+    align-items: start; }
+  .event { font: 600 13px var(--font-mono); padding: 8px 10px; border-radius: 8px;
+    background: var(--accent-soft); border: 1px solid var(--accent); color: var(--accent); }
+  .calls { display: flex; flex-wrap: wrap; gap: 6px; }
+  .call { font: 400 12.5px var(--font-mono); padding: 7px 10px; border-radius: 6px;
+    background: var(--surface); border: 1px solid var(--line); }
+  .flow-row p { grid-column: 2; font-size: 13.5px; color: var(--muted); }
+  @media (max-width: 640px) {
+    .flow-row { grid-template-columns: minmax(0, 1fr); }
+    .flow-row p { grid-column: 1; }
+  }
+  .chain { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .chip { background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+    padding: 6px 10px; font-size: 13px; display: grid; gap: 1px; }
+  .chip code { color: var(--muted); font-size: 12px; }
+  .gt { color: var(--muted); font-family: var(--font-mono); }
+
+  /* Severity and status labels */
+  .sev { display: inline-block; padding: 1px 8px; border-radius: 999px;
+    font: 600 11px var(--font-mono); letter-spacing: 0.04em;
+    text-transform: uppercase; border: 1px solid currentColor;
+    white-space: nowrap; }
+  .sev.high { color: #c2410c; }
+  .sev.medium { color: #a16207; }
+  .sev.low { color: var(--muted); }
+  .sev.info { color: var(--accent); }
+  .done { color: #15803d; font-weight: 600; white-space: nowrap; }
+  .partial { color: #a16207; font-weight: 600; white-space: nowrap; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .sev.high { color: #fb923c; }
+    :root:not([data-theme="light"]) .sev.medium { color: #facc15; }
+    :root:not([data-theme="light"]) .done { color: #4ade80; }
+    :root:not([data-theme="light"]) .partial { color: #facc15; }
+  }
+  :root[data-theme="dark"] .sev.high { color: #fb923c; }
+  :root[data-theme="dark"] .sev.medium { color: #facc15; }
+  :root[data-theme="dark"] .done { color: #4ade80; }
+  :root[data-theme="dark"] .partial { color: #facc15; }
+  .layers { display: grid; gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); }
+  .layer { background: var(--surface); border: 1px solid var(--line);
+    border-radius: 10px; padding: 14px 16px; display: grid; gap: 6px;
+    align-content: start; }
+  .layer h3 { margin: 0; font-size: 15px; }
+  .layer p { font-size: 14px; color: var(--muted); }
+  .layer .when { font: 600 11px var(--font-mono); letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <a class="back" href="index.html">← Docs</a>
+    <p class="eyebrow">paper-to-notebook · security</p>
+    <h1>Security hardening</h1>
+    <p class="lede">What protects Paper to Notebook, and why. The app sends untrusted papers to an LLM and can run the code the model writes, on a server that usually runs on your own machine. This page covers the automated checks, cross-site and CORS protection, the run check (agentic code execution), prompt injection, API keys, input validation, resource limits and dependencies, plus the review findings and the risks that remain.</p>
+  </header>
+
+  <nav class="toc" aria-label="Contents">
+    <p class="eyebrow">Contents</p>
+    <ol>
+      <li><a href="#layers">How security is checked</a></li>
+      <li><a href="#threats">Threat model</a></li>
+      <li><a href="#cross-site">Cross-site requests, CORS and DNS rebinding</a></li>
+      <li><a href="#headers">Security headers</a></li>
+      <li><a href="#agentic">The run check: executing LLM-written code</a></li>
+      <li><a href="#injection">Prompt injection</a></li>
+      <li><a href="#keys">API keys and secrets</a></li>
+      <li><a href="#input">Input validation, files and paths</a></li>
+      <li><a href="#limits">Resource and cost limits</a></li>
+      <li><a href="#supply-chain">Dependencies and supply chain</a></li>
+      <li><a href="#findings">Findings and their status</a></li>
+      <li><a href="#residual">Remaining risks</a></li>
+      <li><a href="#config">Security settings</a></li>
+      <li><a href="#keeping">Keeping it this way</a></li>
+    </ol>
+  </nav>
+
+  <section id="layers">
+    <h2>1. How security is checked</h2>
+    <p>Four layers, from automatic on every change to an occasional deep review. Tools catch known patterns; people (or Claude) catch design problems. The wildcard CORS setting, for example, was flagged by a tool, but it only became serious once the run check existed, which only a review could see.</p>
+    <div class="layers">
+      <div class="layer"><span class="when">Every change · CI</span><h3><code>./check.sh</code></h3><p>Ruff lint with the <code>S</code> (bandit) security rules, formatting, <code>pip-audit</code> for vulnerable dependencies, <code>semgrep --config auto</code> for security patterns in Python, the dashboard's JS/HTML, shell and CI, and the tests (95% coverage). CI runs the same script, and a failure blocks the build.</p></div>
+      <div class="layer"><span class="when">New or changed code</span><h3>security-hardening skill</h3><p>Claude Code loads it for endpoints, subprocesses, paths, keys, fetched URLs, dashboard code, CI and dependencies. It holds this app's threat model, a checklist for new code, and rules for triaging findings.</p></div>
+      <div class="layer"><span class="when">Before committing a feature</span><h3><code>/security-review</code></h3><p>Claude Code's built-in review of <em>pending</em> changes. It's interactive, so it isn't in CI. Run it before committing larger features.</p></div>
+      <div class="layer"><span class="when">Before a release or deploy</span><h3>Manual security review</h3><p>Section 5 of the skill: map the attack surface, review OWASP Top 10, secrets, input validation, rate limiting, CORS, headers and prompt injection, test each against a running server, and write a report with severity levels.</p></div>
+    </div>
+  </section>
+
+  <section id="threats">
+    <h2>2. Threat model</h2>
+    <p>What makes this app risky, and where each defence is described on this page.</p>
+    <div class="table"><table>
+      <thead><tr><th>Threat</th><th>Why it applies here</th><th>Defence</th></tr></thead>
+      <tbody>
+        <tr><td>A malicious website uses your browser</td><td>The server listens on <code>localhost</code>, and any page you visit can send it requests.</td><td><a href="#cross-site">§3</a> same-origin guard, no CORS, host allow-list; <a href="#headers">§4</a> headers</td></tr>
+        <tr><td>LLM-written code running on your machine</td><td>The optional run check executes the notebook's cells.</td><td><a href="#agentic">§5</a> opt-in, localhost-only, separate process, package allow-list</td></tr>
+        <tr><td>Prompt injection through the paper</td><td>The PDF is untrusted text that the model reads and acts on.</td><td><a href="#injection">§6</a> model output treated as data; strict output handling</td></tr>
+        <tr><td>API key leaks</td><td>Every conversion uses your provider key.</td><td><a href="#keys">§7</a> environment only, masked everywhere</td></tr>
+        <tr><td>Malformed or hostile input</td><td>Uploads, arXiv links and model replies.</td><td><a href="#input">§8</a> validation, IDs not paths, safe filenames</td></tr>
+        <tr><td>Cost and resource abuse</td><td>Each conversion is billed to your key.</td><td><a href="#limits">§9</a> concurrency cap, size limits, timeouts</td></tr>
+        <tr><td>Compromised dependencies or CI actions</td><td>The app's packages, CI actions and packages the model asks for.</td><td><a href="#supply-chain">§10</a> pip-audit, pinned actions, package allow-list</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="cross-site">
+    <h2>3. Cross-site requests, CORS and DNS rebinding</h2>
+    <p>A server on <code>localhost</code> isn't private. Any web page you visit can make your browser send it requests. A plain form POST needs no permission (no CORS preflight), and it arrives from <code>127.0.0.1</code>.</p>
+    <h3>What was wrong</h3>
+    <ul>
+      <li><strong>Wildcard CORS.</strong> <code>allow_origins=["*"]</code> with <code>allow_credentials=True</code> echoed any origin back, so every website could read the API from your browser. Found by Semgrep and confirmed with curl.</li>
+      <li><strong>Cross-site POSTs.</strong> A page could start a paid conversion and, since the request came from <code>127.0.0.1</code>, pass the run check's localhost rule.</li>
+      <li><strong>DNS rebinding.</strong> A page that points its own domain at <code>127.0.0.1</code> becomes "same-origin" with the server, gets past a same-origin check, and can read the responses. Found in the manual review.</li>
+    </ul>
+    <h3>What is in place now</h3>
+    <ul>
+      <li><strong>No CORS at all.</strong> The dashboard is served from the same address it calls, so it needs no cross-origin permission. Other sites get no <code>Access-Control-Allow-*</code> headers, so the browser won't let them read responses.</li>
+      <li><strong>Same-origin guard</strong> (<code>require_same_origin</code> in <code>api/dependencies.py</code>) on <code>POST /convert</code> and <code>POST /convert/stream</code>. Browsers mark cross-site requests with <code>Sec-Fetch-Site</code> (and <code>Origin</code> in older browsers), and pages can't forge those headers. Cross-site, same-site (another localhost port) and <code>null</code> origins get 403 before any work starts. Requests without those headers, such as curl and scripts, are allowed.</li>
+      <li><strong>Host allow-list</strong> (<code>HostCheckMiddleware</code> in <code>api/security.py</code>). Only <code>localhost</code>, <code>127.0.0.1</code> and <code>::1</code> are served, plus any names in <code>[app] allowed_hosts</code>; everything else gets 400. This defeats DNS rebinding, because the rebound request still carries the attacker's host name. Starlette's built-in middleware wasn't used because it mishandles IPv6 hosts like <code>[::1]:8000</code>.</li>
+      <li>The run check also requires a localhost <code>Host</code> header, as a second line of defence.</li>
+    </ul>
+    <p class="note">Verified against a live server: other origins get no CORS headers; a cross-site POST gets 403; a rebound host gets 400 on both reads and <code>POST /convert</code> with <code>verify=true</code>; the dashboard still works.</p>
+  </section>
+
+  <section id="headers">
+    <h2>4. Security headers</h2>
+    <p><code>SecurityHeadersMiddleware</code> adds these to every response:</p>
+    <div class="table"><table>
+      <thead><tr><th>Header</th><th>Value</th><th>Protects against</th></tr></thead>
+      <tbody>
+        <tr><td><code>Content-Security-Policy</code></td><td><code>default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'</code></td><td>Injected scripts and styles: only the app's own files run, and no inline code. It backs up the dashboard's <code>textContent</code> rule.</td></tr>
+        <tr><td><code>X-Frame-Options</code></td><td><code>DENY</code></td><td>Clickjacking: the dashboard can't be embedded in another site.</td></tr>
+        <tr><td><code>X-Content-Type-Options</code></td><td><code>nosniff</code></td><td>The browser guessing file types, e.g. treating a download as HTML.</td></tr>
+        <tr><td><code>Referrer-Policy</code></td><td><code>no-referrer</code></td><td>Leaking local URLs to other sites.</td></tr>
+        <tr><td><code>Strict-Transport-Security</code></td><td><code>max-age=31536000</code>, sent over HTTPS only</td><td>Being downgraded to plain HTTP when deployed.</td></tr>
+      </tbody>
+    </table></div>
+    <p><code>/docs</code> and <code>/redoc</code> (the API docs) load their scripts from a CDN, so they get only <code>frame-ancestors 'none'</code>. The dashboard has no inline scripts, <code>style="…"</code> attributes or <code>on…=</code> handlers. Verified in Chrome: zero CSP violations during a full conversion.</p>
+  </section>
+
+  <section id="agentic">
+    <h2>5. The run check: executing LLM-written code</h2>
+    <p>"Check that the notebook runs" runs every code cell with <code>QUICK_RUN = True</code>. If a cell fails, it sends the error back to the model for a fix and runs again. That's agentic code execution: code written by a model (and possibly steered by the paper) runs on the server.</p>
+    <h3>Defences</h3>
+    <ul>
+      <li><strong>Opt-in per run:</strong> unticked by default (<code>[verify] default = false</code>). The hint reads "on this computer, with your permissions… only for papers you trust".</li>
+      <li><strong>Localhost only:</strong> offered only when the client is <code>127.0.0.1</code> or <code>::1</code> <em>and</em> the <code>Host</code> header is a localhost name (<code>verify_allowed</code>), unless <code>[verify] allow_remote = true</code>.</li>
+      <li><strong>Separate process:</strong> <code>sandbox_runner.py</code> runs in its own Python process with a minimal environment (no API keys), a throwaway working folder, its own virtual environment, per-cell and whole-run timeouts, and the whole process group killed on timeout.</li>
+      <li><strong>Package allow-list:</strong> only packages in <code>[verify] allowed_packages</code> (33 common scientific and ML packages) are installed in the sandbox. Others the notebook asks for are skipped and reported, so a paper can't get an arbitrary PyPI package installed on your machine. The downloaded notebook still lists every package for Colab.</li>
+      <li><strong>GPU notebooks skipped,</strong> and repairs capped at <code>max_repairs</code> (2).</li>
+    </ul>
+    <h3>Limits, stated honestly</h3>
+    <p>The sandbox is <strong>not</strong> a defence against malicious code. It runs as your user, so it can read your files, use the network, and read the server's API key from the process list (<code>ps eww &lt;pid&gt;</code> on macOS). The clean environment only prevents accidental leaks. Proper isolation needs a container with no network, or a separate OS user. That's required before any remote use. Until then, the localhost-only rule, the package allow-list and the "papers you trust" rule keep the risk acceptable for a local tool.</p>
+    <p>Two Semgrep findings, <code>exec()</code> and <code>shell=True</code> in <code>sandbox_runner.py</code>, are this intended behaviour. They're annotated with <code># nosemgrep</code> and a reason.</p>
+  </section>
+
+  <section id="injection">
+    <h2>6. Prompt injection</h2>
+    <p>The uploaded or fetched PDF goes to the configured model (Anthropic, Gemini or OpenAI). Anyone can write a paper, or publish one on arXiv, containing hidden instructions. The app doesn't try to detect injection. Instead, it limits what model output can do:</p>
+    <div class="table"><table>
+      <thead><tr><th>Model output</th><th>Where it goes</th><th>How it's handled</th></tr></thead>
+      <tbody>
+        <tr><td>Notebook text, reasoning summary, cell output, errors</td><td>Dashboard</td><td>Always set with <code>textContent</code>, never parsed as HTML; the CSP blocks injected scripts.</td></tr>
+        <tr><td><code>pip_packages</code></td><td>The notebook's <code>!pip install</code> cell</td><td>Filtered to plain package names (<code>_PACKAGE_SPEC</code>) and shell-quoted, so no other shell commands can run. Others are dropped and shown as "unsafe dropped".</td></tr>
+        <tr><td><code>pip_packages</code> during the run check</td><td>The sandbox</td><td>Only allowed packages are installed (<a href="#agentic">§5</a>).</td></tr>
+        <tr><td>Code cells</td><td>The run check</td><td>Executed, which is the main risk; see the limits in <a href="#agentic">§5</a>.</td></tr>
+        <tr><td>Code cells</td><td>The downloaded notebook</td><td>Every notebook begins with "Review the code before relying on its results". You choose what to run in Colab.</td></tr>
+        <tr><td>Title and filename</td><td>Saved file and download header</td><td>Reduced to plain ASCII by <code>sanitize_filename</code>.</td></tr>
+        <tr><td>Repair fixes</td><td>The notebook spec</td><td>Applied only to existing cell numbers, as strings; anything else is ignored.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">The worst case is a chain: a malicious page uses DNS rebinding, starts the run check with a poisoned paper, the injected code runs, and it reads the key. Each link in that chain is now blocked: <a href="#cross-site">§3</a> stops the rebinding, <a href="#agentic">§5</a> keeps the check local and opt-in, and the package allow-list limits what can be installed.</p>
+  </section>
+
+  <section id="keys">
+    <h2>7. API keys and secrets</h2>
+    <ul>
+      <li>Keys are read <strong>only from environment variables</strong>, named by <code>api_key_env</code> in <code>config.toml</code>. Never from files or requests. <code>.env</code> is git-ignored.</li>
+      <li>Keys are logged only through <code>mask_secret</code>, e.g. <code>sk-a…7f2c (33 chars)</code>. <code>ProviderSettings.__repr__</code> and <code>describe_key()</code> mask too.</li>
+      <li>Keys never appear in <code>/api/config</code> (it shows only which variable held the key), error messages, the notebook "recipe", notebook metadata, or the sandbox's environment. Tests check this.</li>
+      <li>A search of all tracked files and the full git history found only two obvious test fakes, and no committed <code>.env</code> or key files.</li>
+      <li>Three Semgrep "credential in log" findings were false positives: a masked key and token counts. They're annotated with the reason.</li>
+    </ul>
+  </section>
+
+  <section id="input">
+    <h2>8. Input validation, files and paths</h2>
+    <div class="table"><table>
+      <thead><tr><th>Input</th><th>Validation</th></tr></thead>
+      <tbody>
+        <tr><td>Uploaded PDF</td><td><code>.pdf</code> name, <code>%PDF-</code> header, 15 MB limit; at most limit + 1 bytes are read, so a huge file is refused without loading it all.</td></tr>
+        <tr><td>arXiv link or ID</td><td>Parsed and validated; the PDF is downloaded only from arxiv.org hosts, including after redirects; same size limit; timeouts. The MCP server starts with a minimal environment (no keys) and a temporary storage folder.</td></tr>
+        <tr><td><code>depth</code>, <code>verify</code>, <code>after</code></td><td>Restricted to <code>beginner</code>/<code>practitioner</code>/<code>expert</code> (otherwise 422, before any model call), a boolean, and an integer ≥ 0.</td></tr>
+        <tr><td>Notebook downloads</td><td>Served only by a random ID for notebooks this server saved (<code>/api/notebooks/{id}</code>), never by a path from the request.</td></tr>
+        <tr><td>Saved filenames</td><td>Plain ASCII letters, digits and a few safe characters. They can't escape the output folder or break the <code>Content-Disposition</code> header, and saving never overwrites an existing file.</td></tr>
+        <tr><td>Page includes</td><td>Must stay inside <code>api/static/</code>; nested includes are capped at three levels, and loops are refused.</td></tr>
+        <tr><td>Model reply</td><td>Validated against the notebook schema before it's built or run.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="limits">
+    <h2>9. Resource and cost limits</h2>
+    <ul>
+      <li><strong>Concurrent conversions:</strong> at most <code>[app] max_concurrent_conversions</code> (default 2). More get <code>429</code> with <code>Retry-After</code>. A slot is taken only after the input is validated, and it's released on success, failure or client disconnect. Verified: 6 at once gives 2 running and 4 refused.</li>
+      <li><strong>Sizes:</strong> 15 MB for uploads and arXiv PDFs.</li>
+      <li><strong>Time:</strong> arXiv lookup and download timeouts; per-cell and whole-run timeouts in the run check; a capped number of repairs.</li>
+      <li><strong>Binding:</strong> <code>run.py</code> listens on <code>127.0.0.1</code> by default. Set <code>HOST=0.0.0.0</code> only on purpose. Ruff's <code>S104</code> rule flagged the old <code>0.0.0.0</code> default.</li>
+    </ul>
+  </section>
+
+  <section id="supply-chain">
+    <h2>10. Dependencies and supply chain</h2>
+    <ul>
+      <li><strong><code>pip-audit</code></strong> checks every installed package, including indirect ones, against the public vulnerability database on every check and in CI. If a package is vulnerable, the rule is to raise its minimum version in <code>pyproject.toml</code>.</li>
+      <li><strong>CI actions are pinned to full commit SHAs</strong> (<code>actions/checkout</code> v4.4.0, <code>astral-sh/setup-uv</code> v6.8.0), with the version in a comment. A tag can be moved to other code by the action's owner; a SHA can't. The workflow explains how to update.</li>
+      <li><strong>uv</strong> installs everything. CI resolves versions from <code>pyproject.toml</code> on each run, because <code>uv.lock</code> is git-ignored by choice.</li>
+      <li><strong>Packages the model asks for</strong> go through the run check's allow-list (<a href="#agentic">§5</a>). In Colab, you choose whether to run the install cell.</li>
+    </ul>
+  </section>
+
+  <section id="findings">
+    <h2>11. Findings and their status</h2>
+    <h3>Automated scan: <code>semgrep --config auto</code> (9 findings in app code, 0 in tests)</h3>
+    <div class="table"><table>
+      <thead><tr><th>Finding</th><th>Severity</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr><td>Wildcard CORS with credentials (<code>api/main.py</code>)</td><td><span class="sev high">High</span></td><td><span class="done">Fixed</span>: CORS removed, same-origin guard added</td></tr>
+        <tr><td>CI actions on movable tags (×3)</td><td><span class="sev medium">Medium</span></td><td><span class="done">Fixed</span>: pinned to commit SHAs</td></tr>
+        <tr><td><code>shell=True</code>, <code>exec()</code> in the sandbox runner</td><td><span class="sev info">Info</span></td><td>Intended (the run check); annotated with a reason</td></tr>
+        <tr><td>"Credential in log" (×3)</td><td><span class="sev info">Info</span></td><td>False positives (masked key, token counts); annotated</td></tr>
+      </tbody>
+    </table></div>
+    <h3>Manual security review</h3>
+    <div class="table"><table>
+      <thead><tr><th>ID</th><th>Finding</th><th>Severity</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr><td>F1</td><td>Host header not checked: DNS rebinding gets past the same-origin guard and the run check's localhost rule</td><td><span class="sev high">High</span></td><td><span class="done">Fixed</span>: host allow-list; run check also needs a localhost Host</td></tr>
+        <tr><td>F2</td><td>Run-check code can read your files and the server's API key</td><td><span class="sev medium">Medium</span></td><td><span class="partial">Mitigated</span>: documented honestly, UI warning; full isolation still to do</td></tr>
+        <tr><td>F3</td><td>Prompt injection leading to code execution and package installs</td><td><span class="sev medium">Medium</span></td><td><span class="done">Fixed</span> for packages (allow-list); code execution limited by §5</td></tr>
+        <tr><td>F4</td><td>No limit on paid conversions</td><td><span class="sev medium">Medium</span></td><td><span class="done">Fixed</span>: concurrency cap, 429</td></tr>
+        <tr><td>F5</td><td>No security headers</td><td><span class="sev medium">Medium</span></td><td><span class="done">Fixed</span>: CSP, frame, nosniff, referrer, HSTS</td></tr>
+        <tr><td>F6</td><td>No authentication</td><td><span class="sev high">High if deployed</span></td><td><span class="partial">Documented</span>: don't deploy publicly without authentication in front</td></tr>
+        <tr><td>F7</td><td>Upload read fully before the size check</td><td><span class="sev low">Low</span></td><td><span class="done">Fixed</span></td></tr>
+        <tr><td>F8</td><td>arXiv redirects not re-checked</td><td><span class="sev low">Low</span></td><td><span class="done">Fixed</span></td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">Every fix has tests (in <code>tests/test_security.py</code>, <code>tests/test_verify.py</code> and <code>tests/test_arxiv.py</code>), and the original attacks were re-run against a live server after fixing.</p>
+  </section>
+
+  <section id="residual">
+    <h2>12. Remaining risks</h2>
+    <ul>
+      <li><strong>The run check isn't isolated</strong> (F2). Acceptable for a local, opt-in tool used on papers you trust. Before remote use, run it in a container without network access or home-folder access, or as a separate OS user.</li>
+      <li><strong>No authentication</strong> (F6). Anyone who can reach the server can spend your key, list and download notebooks, and see server paths. Keep it on localhost, or put it behind an authenticating proxy and list its host in <code>[app] allowed_hosts</code>.</li>
+      <li><strong>Generated notebooks are untrusted.</strong> Review the code, and the packages it installs, before running it in Colab.</li>
+      <li><strong>Dependency versions aren't locked</strong> (<code>uv.lock</code> is git-ignored). Each CI run audits the latest versions allowed by <code>pyproject.toml</code>, which is good for catching new CVEs but means builds aren't fully reproducible.</li>
+      <li><strong>Semgrep's rules change over time,</strong> so a new rule can occasionally flag existing code and fail CI. Triage it with the skill's rules: fix real issues, and annotate intended behaviour with a reason.</li>
+    </ul>
+  </section>
+
+  <section id="config">
+    <h2>13. Security settings</h2>
+    <div class="table"><table>
+      <thead><tr><th>Setting</th><th>Default</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr><td><code>[app] allowed_hosts</code></td><td><code>[]</code></td><td>Host names served besides localhost, 127.0.0.1 and ::1 (<code>*.example.com</code> matches subdomains). Add one only for a deploy behind authentication.</td></tr>
+        <tr><td><code>[app] max_concurrent_conversions</code></td><td><code>2</code></td><td>Conversions that may run at once; more get 429.</td></tr>
+        <tr><td><code>[verify] default</code></td><td><code>false</code></td><td>Whether the run-check box starts ticked.</td></tr>
+        <tr><td><code>[verify] allow_remote</code></td><td><code>false</code></td><td>Offer the run check to non-localhost clients. Leave off unless it's isolated.</td></tr>
+        <tr><td><code>[verify] allowed_packages</code></td><td>33 common packages</td><td>Packages the run check may install; <code>["*"]</code> allows all.</td></tr>
+        <tr><td><code>[verify] cell_timeout</code>, <code>total_timeout</code>, <code>max_repairs</code></td><td>120 s, 600 s, 2</td><td>Bounds on each run-check attempt.</td></tr>
+        <tr><td><code>HOST</code> (environment)</td><td><code>127.0.0.1</code></td><td>Address <code>run.py</code> listens on.</td></tr>
+        <tr><td>Provider API key (environment)</td><td>none</td><td>Read only from the variables named in <code>config.toml</code>; never stored.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="keeping">
+    <h2>14. Keeping it this way</h2>
+    <ol>
+      <li>Run <code>./check.sh</code> after every change; CI enforces it. Fix findings rather than silencing them. Annotate only intended behaviour or false positives, one line at a time, with a reason. Never use blanket ignores or <code>--no-verify</code>.</li>
+      <li>For new endpoints, subprocesses, file handling, fetched URLs, key handling or dashboard code, follow the <code>security-hardening</code> skill's checklist. In particular, a new POST endpoint needs <code>require_same_origin</code>, a test that a cross-site request gets 403, and, if it's costly, a conversion slot.</li>
+      <li>Run <code>/security-review</code> on pending changes before committing larger features.</li>
+      <li>Do a manual security review (the skill's section 5) before any deploy or release, and update this page with the results.</li>
+    </ol>
+  </section>
+</div>
+</body>
+</html>

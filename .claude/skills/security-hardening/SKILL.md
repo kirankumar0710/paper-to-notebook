@@ -204,6 +204,8 @@ deployment (local by default; say how the rating changes if deployed).
 
 Do not fix during the review unless asked; report first, then fix by
 severity, each fix with a test (section 3) and a re-run of the evidence.
+Afterwards, update `docs/security.html` (findings and their status,
+remaining risks, settings) so it matches the code.
 
 ## 6. Before finishing
 
