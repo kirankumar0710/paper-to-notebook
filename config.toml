@@ -63,16 +63,29 @@ api_key_env = ["OPENAI_API_KEY"]
 #                ~ and $VARIABLES in the value are expanded.
 [app]
 output_dir = "NOTEBOOK_OUTPUT_DIR"
+# Host names the server answers to, besides localhost, 127.0.0.1 and ::1.
+# Requests for any other name get 400, which stops DNS rebinding (a web
+# page pointing its own domain at 127.0.0.1). Add your domain only when
+# deploying, e.g. ["notebooks.example.com"]; "*.example.com" matches
+# subdomains. Never deploy without authentication in front of the app.
+allowed_hosts = []
+# Conversions that may run at once; more get 429. Each one spends money on
+# your API key, and the run check also uses CPU.
+max_concurrent_conversions = 2
 
 # Optional "Check that the notebook runs" step. After the model writes the
 # notebook, its code cells are run top to bottom with QUICK_RUN = True (tiny
 # data, few steps); if a cell fails, the error goes back to the same LLM
 # for a fix, up to max_repairs times. It works with every provider.
 #
-# This runs code written by an LLM on this machine, in a separate process
-# with no API keys in its environment and a throwaway working folder. It is
-# offered only to browsers on this machine (localhost) unless allow_remote
-# is true; leave allow_remote false on a shared or public server.
+# This runs code written by an LLM on this machine, with YOUR user's
+# permissions: in a separate process with no API keys in its environment,
+# a throwaway working folder and timeouts, but it can still read your
+# files, see other processes (including this server's API key) and use the
+# network. A paper can steer what the model writes, so use it only for
+# papers you trust. It is offered only to browsers on this machine
+# (localhost, and a localhost Host header) unless allow_remote is true;
+# leave allow_remote false on a shared or public server.
 #
 #   default        tick the dashboard checkbox by default
 #   allow_remote   offer the check to clients that are not on localhost
@@ -85,6 +98,10 @@ output_dir = "NOTEBOOK_OUTPUT_DIR"
 #   sandbox_dir    virtual environment created on first use for the check
 #   base_packages  installed into the sandbox once, standing in for the
 #                  packages Google Colab preinstalls
+#   allowed_packages  extra packages a notebook may have installed in the
+#                  sandbox; others are skipped (a paper could otherwise
+#                  get a malicious package installed). ["*"] allows all.
+#                  The downloaded notebook still lists every package.
 [verify]
 default = false
 allow_remote = false
@@ -101,6 +118,41 @@ base_packages = [
     "matplotlib",
     "scikit-learn",
     "torch",
+]
+allowed_packages = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "matplotlib",
+    "seaborn",
+    "plotly",
+    "scikit-learn",
+    "statsmodels",
+    "sympy",
+    "networkx",
+    "tqdm",
+    "pillow",
+    "opencv-python",
+    "torch",
+    "torchvision",
+    "torchaudio",
+    "torch-geometric",
+    "einops",
+    "timm",
+    "transformers",
+    "datasets",
+    "tokenizers",
+    "accelerate",
+    "sentencepiece",
+    "jax",
+    "jaxlib",
+    "flax",
+    "optax",
+    "tensorflow",
+    "keras",
+    "gymnasium",
+    "xgboost",
+    "lightgbm",
 ]
 
 # arXiv papers. Pasting an arXiv ID or link looks the paper up with the

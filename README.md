@@ -286,19 +286,42 @@ before you get it:
 Repairs use the same `LLMProvider` interface as the conversion, so the
 check works with Anthropic, Gemini and OpenAI. GPU notebooks are skipped.
 
-**It runs LLM-written code on the server.** The code runs in a separate
-Python process with no API keys in its environment, in a throwaway
-folder, under per-cell and total timeouts, but it is not a full sandbox:
-it can still reach the network and your files. So the check is offered
-only to a browser on the same machine (localhost) unless you set
-`allow_remote = true`. Leave that off on a shared or public server.
+**It runs LLM-written code on your computer, with your user's
+permissions.** The code runs in a separate Python process with no API
+keys in its environment, in a throwaway folder, under per-cell and total
+timeouts, but it is not a sandbox against malicious code: it can read
+your files, use the network, and read this server's API key from the
+process list. A paper can steer what the model writes, so **use the
+check only for papers you trust**. To limit the risk:
 
-Other websites cannot use your browser to reach the server: there is no
-CORS permission for other origins, and `/convert` and `/convert/stream`
-refuse requests that browsers mark as coming from another site
-(`Sec-Fetch-Site` / `Origin`), so a malicious page cannot start a paid
-conversion or the run check on your machine. Requests without those
-headers (curl, scripts) are allowed.
+- it is off unless you tick it for a conversion;
+- it is offered only to a browser on this machine (localhost) unless you
+  set `allow_remote = true`; leave that off on a shared or public server;
+- it installs only packages listed in `[verify] allowed_packages` (common
+  scientific and ML packages); others the notebook asks for are skipped
+  and reported (the downloaded notebook still lists them). `["*"]` allows
+  all.
+
+Other websites cannot use your browser to reach the server:
+
+- there is no CORS permission for other origins;
+- `/convert` and `/convert/stream` refuse requests that browsers mark as
+  coming from another site (`Sec-Fetch-Site` / `Origin`); requests
+  without those headers (curl, scripts) are allowed;
+- only the host names `localhost`, `127.0.0.1` and `::1` are served
+  (plus `[app] allowed_hosts`); others get 400, which stops DNS
+  rebinding, where a page points its own domain at your machine;
+- every response sends a strict Content-Security-Policy and forbids
+  framing, MIME sniffing and referrers.
+
+At most `[app] max_concurrent_conversions` (default 2) conversions run at
+once; more get 429 with `Retry-After`, so nothing can start unlimited
+paid conversions on your key.
+
+**Do not deploy this publicly without authentication.** There is no
+login: anyone who can reach the server can spend your API key and
+download every notebook. Keep it on localhost, or put it behind an
+authenticating proxy and list its host in `[app] allowed_hosts`.
 
 On first use, the check creates a virtual environment in
 `~/.cache/paper-to-notebook/verify-env` and installs `base_packages`

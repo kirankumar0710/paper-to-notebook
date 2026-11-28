@@ -41,6 +41,7 @@ from api.dependencies import (
 )
 from api.routes.download import SavedNotebook, save_notebook
 from api.routes.metrics import record_failure, record_success
+from api.security import ConversionSlots, request_is_loopback
 from api.settings import (
     IPYNB_MEDIA_TYPE,
     MAX_UPLOAD_BYTES,
@@ -138,7 +139,9 @@ def get_verify_settings(
     if not wanted:
         return None
     host = request.client.host if request.client else None
-    if verify_allowed(host, settings):
+    if verify_allowed(
+        host, settings, host_is_local=request_is_loopback(request)
+    ):
         return settings
     if verify is None:
         return None  # only the default asked for it
@@ -153,6 +156,9 @@ def get_verify_settings(
 
 
 VerifyOption = Annotated[VerifySettings | None, Depends(get_verify_settings)]
+
+# How many conversions may run at once ([app] max_concurrent_conversions).
+CONVERSIONS = ConversionSlots()
 
 # Running conversions. Keeping a reference stops them being garbage
 # collected; they finish (and save the notebook) even if the client leaves.
@@ -226,7 +232,9 @@ async def _read_pdf(file: UploadFile) -> bytes:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only PDF files are accepted.",
         )
-    content = await file.read()
+    # Read one byte past the limit, never the whole upload, so a huge file
+    # is refused without being loaded into memory.
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
     logger.info(
         "Upload received: %r (%.1f KB)", file.filename, len(content) / 1024
     )
@@ -386,15 +394,48 @@ async def convert_pdf_to_notebook(
     ``depth`` (``beginner``, ``practitioner`` or ``expert``) sets how
     much the notebook explains compared with how much it implements.
 
+    At most ``[app] max_concurrent_conversions`` conversions run at once;
+    more get 429 with ``Retry-After``.
+
     The LLM reads the PDF directly, so layout, equations and figures are
     taken into account. Expect a conversion to take a minute or more; use
     ``/convert/stream`` to receive progress updates while it runs.
     """
     arxiv_id = _check_source(file, arxiv)
-    if arxiv_id is not None:
+    upload: bytes | None = None
+    if arxiv_id is None:
+        assert file is not None  # noqa: S101 (type narrowing)
+        upload = await _read_pdf(file)
+    CONVERSIONS.acquire()  # 429 if too many are running
+    try:
+        return await _convert_once(
+            provider,
+            output_dir,
+            file=file,
+            arxiv_id=arxiv_id,
+            upload=upload,
+            verify=verify,
+            depth=depth,
+        )
+    finally:
+        CONVERSIONS.release()
+
+
+async def _convert_once(
+    provider: LLMProvider,
+    output_dir: Path,
+    *,
+    file: UploadFile | None,
+    arxiv_id: str | None,
+    upload: bytes | None,
+    verify: VerifySettings | None,
+    depth: str,
+) -> Response:
+    """One ``/convert`` conversion, run while holding a slot."""
+    if upload is None:
         try:
             paper = await fetch_arxiv_paper(
-                arxiv_id, max_bytes=MAX_UPLOAD_BYTES
+                arxiv_id or "", max_bytes=MAX_UPLOAD_BYTES
             )
         except ArxivError as exc:
             raise _arxiv_http_error(exc) from exc
@@ -402,7 +443,7 @@ async def convert_pdf_to_notebook(
         source = paper.describe()
     else:
         assert file is not None  # noqa: S101 (type narrowing)
-        content, source_name = await _read_pdf(file), file.filename
+        content, source_name = upload, file.filename
         source = _upload_source(file)
     started = time.monotonic()
     capture = _Capture()
@@ -546,8 +587,9 @@ async def convert_pdf_to_notebook_stream(
     - ``error``: ``status`` (HTTP code it would have had) and ``detail``.
       Ends the stream.
 
-    Upload problems and invalid arXiv references (400) and missing
-    configuration (503) are returned as normal HTTP errors before the
+    Upload problems and invalid arXiv references (400), too many running
+    conversions (429) and missing configuration (503) are returned as
+    normal HTTP errors before the
     stream starts; a failed arXiv lookup is an ``error`` event. If the
     client disconnects, the conversion still finishes and is saved to the
     output folder.
@@ -645,9 +687,13 @@ async def convert_pdf_to_notebook_stream(
         )
         await queue.put(("result", event))
 
+    CONVERSIONS.acquire()  # 429 if too many are running
     task = asyncio.create_task(convert())
     _background_tasks.add(task)
     task.add_done_callback(_background_tasks.discard)
+    # The slot is held until the conversion ends, even if the client
+    # disconnects first.
+    task.add_done_callback(lambda _: CONVERSIONS.release())
 
     async def events() -> AsyncIterator[str]:
         if file is not None:

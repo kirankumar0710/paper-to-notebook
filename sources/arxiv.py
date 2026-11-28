@@ -339,6 +339,13 @@ async def _download_pdf(
     size = 0
     try:
         async with client.stream("GET", url) as response:
+            # Redirects are followed; the PDF must still come from arXiv.
+            final_host = (response.url.host or "").lower()
+            if final_host not in ARXIV_HOSTS:
+                raise ArxivError(
+                    f"The PDF download was redirected away from arXiv "
+                    f"(to {final_host or 'an unknown host'}); refusing it."
+                )
             if response.status_code != 200:
                 raise ArxivError(
                     f"arXiv returned HTTP {response.status_code} for {url}.",

@@ -772,3 +772,83 @@ class TestEndpoints:
         result = events[-1][1]
         assert result["verification"]["status"] == "failed"
         assert result["usage"]["total_tokens"] == 30
+
+
+class TestAllowedPackages:
+    """F3: the run check installs only allowed packages."""
+
+    @pytest.mark.parametrize(
+        ("spec", "name"),
+        [
+            ("torch", "torch"),
+            ("Torch_Geometric>=2.3", "torch-geometric"),
+            ("jax[cuda12]", "jax"),
+            ("scikit.learn", "scikit-learn"),
+            ("", ""),
+        ],
+    )
+    def test_package_name(self, spec, name):
+        assert verify_module.package_name(spec) == name
+
+    def test_split_allowed(self):
+        keep, skip = verify_module.split_allowed(
+            ["einops>=0.7", "evil-pkg", "Torch"], ("einops", "torch")
+        )
+        assert keep == ["einops>=0.7", "Torch"]
+        assert skip == ["evil-pkg"]
+        assert verify_module.split_allowed(["evil-pkg"], ("*",)) == (
+            ["evil-pkg"],
+            [],
+        )
+
+    def test_unlisted_package_is_not_installed(self):
+        runner = FakeRunner()
+        spec = {**SPEC, "pip_packages": ["einops", "numpy-utils2"]}
+        _, report, updates = TestVerifyNotebook()._verify(
+            RepairProvider(), runner, spec=spec
+        )
+        assert runner.runs[0][0] == "!pip install -q einops"
+        assert report.skipped_packages == ("numpy-utils2",)
+        assert report.to_dict()["skipped_packages"] == ["numpy-utils2"]
+        assert any("numpy-utils2" in u.message for u in updates)
+
+    def test_failure_names_skipped_packages(self):
+        spec = {**SPEC, "pip_packages": ["numpy-utils2"]}
+        _, report, _ = TestVerifyNotebook()._verify(
+            RepairProvider(),
+            FakeRunner(2),
+            _settings(max_repairs=0),
+            spec=spec,
+        )
+        assert report.status == "failed"
+        assert "Not installed in the check: numpy-utils2" in report.message
+        assert "allowed_packages" in report.message
+
+    def test_repair_prompt_says_what_is_missing(self):
+        provider = RepairProvider(FIX)
+        spec = {**SPEC, "pip_packages": ["numpy-utils2"]}
+        TestVerifyNotebook()._verify(provider, FakeRunner(2), spec=spec)
+        assert (
+            "NOT installed in the check: numpy-utils2"
+            in (provider.calls[0]["prompt"])
+        )
+
+    def test_star_allows_everything(self):
+        runner = FakeRunner()
+        spec = {**SPEC, "pip_packages": ["numpy-utils2"]}
+        TestVerifyNotebook()._verify(
+            RepairProvider(),
+            runner,
+            _settings(allowed_packages=("*",)),
+            spec=spec,
+        )
+        assert runner.runs[0][0] == "!pip install -q numpy-utils2"
+
+    def test_setting_from_config(self):
+        settings = load_verify_settings(
+            {"verify": {"allowed_packages": [" einops "]}}
+        )
+        assert settings.allowed_packages == ("einops",)
+        shipped = load_verify_settings()
+        assert "torch" in shipped.allowed_packages
+        assert "einops" in shipped.allowed_packages

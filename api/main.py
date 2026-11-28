@@ -28,6 +28,7 @@ from api.routes.convert import (
     convert_pdf_to_notebook,
     convert_pdf_to_notebook_stream,
 )
+from api.security import HostCheckMiddleware, SecurityHeadersMiddleware
 from api.settings import STATIC_DIR, UPLOAD_PAGE, VERSION
 from util.log import configure_logging, get_logger
 
@@ -90,6 +91,11 @@ app = FastAPI(
 # need no cross-origin permission, and other websites must not be able to
 # read this API from a visitor's browser. Cross-site POSTs (which browsers
 # send without asking) are refused by require_same_origin on /convert.
+#
+# Middleware (the last added runs first): refuse hosts that are not
+# allowed (DNS rebinding), then add security headers to every response.
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(HostCheckMiddleware)
 
 # The dashboard and its panels' CSS/JS.
 app.include_router(dashboard.router)

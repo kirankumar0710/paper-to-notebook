@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import os
+from functools import partial
 from typing import Any
 
 from fastapi import APIRouter, Request
 from fastapi.concurrency import run_in_threadpool
 
 from api.dependencies import check_configuration
+from api.security import request_is_loopback
 from api.settings import MAX_UPLOAD_MB, VERSION
 from notebook_builder.verify import load_verify_settings, verify_allowed
 from providers.factory import resolve_settings
@@ -19,7 +21,9 @@ __all__ = ["describe_configuration", "router"]
 router = APIRouter()
 
 
-def describe_configuration(client_host: str | None = None) -> dict[str, Any]:
+def describe_configuration(
+    client_host: str | None = None, *, host_is_local: bool = True
+) -> dict[str, Any]:
     """Summarise the current settings for the dashboard.
 
     Never includes the API key itself, only where it was (or was not)
@@ -43,7 +47,7 @@ def describe_configuration(client_host: str | None = None) -> dict[str, Any]:
             "writable": False,
         },
         "max_upload_mb": MAX_UPLOAD_MB,
-        "verify": _describe_verify(client_host),
+        "verify": _describe_verify(client_host, host_is_local),
         "problems": check_configuration(),
     }
     try:
@@ -78,13 +82,17 @@ def describe_configuration(client_host: str | None = None) -> dict[str, Any]:
     return info
 
 
-def _describe_verify(client_host: str | None) -> dict[str, Any]:
+def _describe_verify(
+    client_host: str | None, host_is_local: bool = True
+) -> dict[str, Any]:
     """Whether the dashboard may offer the run check, and its defaults."""
     try:
         settings = load_verify_settings()
     except (ConfigError, FileNotFoundError):
         return {"available": False, "default": False, "reason": None}
-    available = verify_allowed(client_host, settings)
+    available = verify_allowed(
+        client_host, settings, host_is_local=host_is_local
+    )
     return {
         "available": available,
         "default": settings.default and available,
@@ -103,7 +111,13 @@ def _describe_verify(client_host: str | None) -> dict[str, Any]:
 async def config(request: Request) -> dict[str, Any]:
     """Current provider, API key status and output folder (no secrets)."""
     host = request.client.host if request.client else None
-    return await run_in_threadpool(describe_configuration, host)
+    return await run_in_threadpool(
+        partial(
+            describe_configuration,
+            host,
+            host_is_local=request_is_loopback(request),
+        )
+    )
 
 
 @router.get("/health")

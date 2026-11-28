@@ -381,6 +381,36 @@ class TestFetch:
         assert text in str(error)
         assert log.since()["events"][-1]["kind"] == "error"
 
+    def test_redirect_away_from_arxiv_is_refused(self):
+        def handler(request):
+            if request.url.host == "arxiv.org":
+                return httpx.Response(
+                    302, headers={"Location": "https://evil.example/x.pdf"}
+                )
+            return httpx.Response(200, content=PDF)
+
+        client = httpx.AsyncClient(
+            transport=httpx.MockTransport(handler), follow_redirects=True
+        )
+        error, _ = fetch_error(client=client)
+        assert "redirected away from arXiv" in str(error)
+        assert "evil.example" in str(error)
+
+    def test_redirect_within_arxiv_is_followed(self):
+        def handler(request):
+            if request.url.host == "arxiv.org":
+                return httpx.Response(
+                    301,
+                    headers={"Location": "https://export.arxiv.org/pdf/x"},
+                )
+            return httpx.Response(200, content=PDF)
+
+        client = httpx.AsyncClient(
+            transport=httpx.MockTransport(handler), follow_redirects=True
+        )
+        _, paper = fetch(session=FakeSession(), client=client)
+        assert paper.pdf == PDF
+
     def test_pdf_too_large(self):
         error, _ = fetch_error(client=http(body=PDF * 10), max_bytes=50)
         assert error.status_code == 400

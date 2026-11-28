@@ -79,6 +79,46 @@ DEFAULT_BASE_PACKAGES = (
     "scikit-learn",
     "torch",
 )
+# Packages the run check may install when a notebook asks for them.
+# Anything else is skipped: a paper can steer the model into naming a
+# malicious package, whose install script would run on this machine.
+# "*" allows all. Names are compared after PEP 503 normalisation.
+DEFAULT_ALLOWED_PACKAGES = (
+    "numpy",
+    "scipy",
+    "pandas",
+    "matplotlib",
+    "seaborn",
+    "plotly",
+    "scikit-learn",
+    "statsmodels",
+    "sympy",
+    "networkx",
+    "tqdm",
+    "pillow",
+    "opencv-python",
+    "torch",
+    "torchvision",
+    "torchaudio",
+    "torch-geometric",
+    "einops",
+    "timm",
+    "transformers",
+    "datasets",
+    "tokenizers",
+    "accelerate",
+    "sentencepiece",
+    "jax",
+    "jaxlib",
+    "flax",
+    "optax",
+    "tensorflow",
+    "keras",
+    "gymnasium",
+    "xgboost",
+    "lightgbm",
+)
+_PACKAGE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*")
 # A model cell that sets QUICK_RUN itself would undo the check's setting.
 _QUICK_RUN_ASSIGNMENT = re.compile(r"^QUICK_RUN\s*=.*$", re.MULTILINE)
 
@@ -104,6 +144,7 @@ class VerifySettings:
         )
     )
     base_packages: tuple[str, ...] = DEFAULT_BASE_PACKAGES
+    allowed_packages: tuple[str, ...] = DEFAULT_ALLOWED_PACKAGES
     setup_timeout: float = 1800.0
 
     @property
@@ -139,30 +180,45 @@ def load_verify_settings(config: Config | None = None) -> VerifySettings:
     pick("max_repairs", int, lambda v: 0 <= v <= 10)
     pick("python", str)
     pick("sandbox_dir", str, lambda v: bool(v.strip()))
-    pick(
-        "base_packages",
-        list,
-        lambda v: all(isinstance(p, str) and p.strip() for p in v),
-    )
+    for key in ("base_packages", "allowed_packages"):
+        pick(
+            key,
+            list,
+            lambda v: all(isinstance(p, str) and p.strip() for p in v),
+        )
     if "sandbox_dir" in values:
         values["sandbox_dir"] = Path(
             os.path.expandvars(values["sandbox_dir"])
         ).expanduser()
     if "python" in values:
         values["python"] = os.path.expanduser(values["python"].strip())
-    if "base_packages" in values:
-        values["base_packages"] = tuple(
-            p.strip() for p in values["base_packages"]
-        )
+    for key in ("base_packages", "allowed_packages"):
+        if key in values:
+            values[key] = tuple(p.strip() for p in values[key])
     for key in ("cell_timeout", "total_timeout", "setup_timeout"):
         if key in values:
             values[key] = float(values[key])
     return replace(defaults, **values)
 
 
-def verify_allowed(client_host: str | None, settings: VerifySettings) -> bool:
-    """Whether the check may run for a request from ``client_host``."""
-    return settings.allow_remote or client_host in LOCAL_HOSTS
+def verify_allowed(
+    client_host: str | None,
+    settings: VerifySettings,
+    *,
+    host_is_local: bool = True,
+) -> bool:
+    """Whether the check may run for a request from ``client_host``.
+
+    Args:
+        client_host: The client's address.
+        settings: ``[verify]`` settings.
+        host_is_local: Whether the request's ``Host`` header names this
+            machine. A request from 127.0.0.1 for another name is a DNS
+            rebinding attempt: a web page pointing its own domain here.
+    """
+    if settings.allow_remote:
+        return True
+    return client_host in LOCAL_HOSTS and host_is_local
 
 
 # ---------------------------------------------------------------------------
@@ -518,6 +574,9 @@ class VerifyReport:
         repaired_cells: Code cell numbers the model changed.
         elapsed: Seconds spent checking and repairing.
         usage: Tokens used by the repair requests, if any.
+        skipped_packages: Packages the notebook asks for that the check
+            did not install, because they are not in
+            ``[verify] allowed_packages``.
     """
 
     status: str
@@ -529,6 +588,7 @@ class VerifyReport:
     repaired_cells: tuple[int, ...] = ()
     elapsed: float = 0.0
     usage: dict[str, int] | None = None
+    skipped_packages: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -541,6 +601,7 @@ class VerifyReport:
             "repaired_cells": list(self.repaired_cells),
             "elapsed": round(self.elapsed, 1),
             "usage": self.usage,
+            "skipped_packages": list(self.skipped_packages),
         }
 
     def note(self) -> str | None:
@@ -577,12 +638,43 @@ def _code_cells(spec: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def _plan(spec: dict[str, Any]) -> tuple[list[str], list[int | None]]:
+def package_name(spec: str) -> str:
+    """A requirement's normalised name: ``"Torch_Geometric>=2"`` →
+    ``"torch-geometric"`` (PEP 503)."""
+    match = _PACKAGE_NAME.match(spec.strip())
+    name = match.group(0) if match else ""
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def split_allowed(
+    packages: list[Any], allowed: tuple[str, ...]
+) -> tuple[list[str], list[str]]:
+    """Split package specs into ``(installable, skipped)`` by name."""
+    names = {package_name(p) for p in allowed}
+    keep: list[str] = []
+    skip: list[str] = []
+    for spec in packages:
+        spec = str(spec)
+        if "*" in allowed or package_name(spec) in names:
+            keep.append(spec)
+        else:
+            skip.append(spec)
+    return keep, skip
+
+
+def _plan(
+    spec: dict[str, Any], settings: VerifySettings | None = None
+) -> tuple[list[str], list[int | None], list[str]]:
     """The sources to run and, for each, its code cell number (None for the
-    cells the builder adds: pip install and QUICK_RUN)."""
+    cells the builder adds: pip install and QUICK_RUN), plus the packages
+    skipped because they are not allowed."""
     sources: list[str] = []
     numbers: list[int | None] = []
-    install = pip_install_source(spec.get("pip_packages") or [])
+    allowed = (settings or VerifySettings()).allowed_packages
+    packages, skipped = split_allowed(
+        list(spec.get("pip_packages") or []), allowed
+    )
+    install = pip_install_source(packages)
     if install is not None:
         sources.append(install)
         numbers.append(None)
@@ -593,7 +685,21 @@ def _plan(spec: dict[str, Any]) -> tuple[list[str], list[int | None]]:
             _QUICK_RUN_ASSIGNMENT.sub("QUICK_RUN = True", cell["source"])
         )
         numbers.append(number)
-    return sources, numbers
+    return sources, numbers, skipped
+
+
+def _skipped_note(spec: dict[str, Any], settings: VerifySettings) -> str:
+    """Tell the model which requested packages the check cannot install."""
+    _, skipped = split_allowed(
+        list(spec.get("pip_packages") or []), settings.allowed_packages
+    )
+    if not skipped:
+        return ""
+    return (
+        "These requested packages are NOT installed in the check: "
+        f"{', '.join(skipped)}; with QUICK_RUN True, avoid needing them "
+        "if you can."
+    )
 
 
 def _repair_prompt(
@@ -615,7 +721,8 @@ def _repair_prompt(
         f"{settings.cell_timeout:.0f} seconds on a CPU.\n\n"
         f"Extra pip packages installed: {packages}. Packages that Google "
         "Colab preinstalls (numpy, scipy, pandas, matplotlib, "
-        "scikit-learn, torch, ...) are available.\n\n"
+        "scikit-learn, torch, ...) are available. "
+        f"{_skipped_note(spec, settings)}\n\n"
         f"{where} failed with:\n```\n{result.error}\n{result.details}\n```"
         f"\n\nThe code cells:\n\n{cells}\n\n"
         "Return in `fixes` the complete new source of each code cell you "
@@ -762,12 +869,20 @@ def verify_notebook(
                 )
             )
 
+    skipped_now: list[str] = []  # packages the latest run did not install
+
     def report(status: str, message: str, **extra: Any) -> VerifyReport:
+        if status == "failed" and skipped_now:
+            message += (
+                f" Not installed in the check: {', '.join(skipped_now)} "
+                "(add to [verify] allowed_packages to allow)."
+            )
         result = VerifyReport(
             status,
             message,
             code_cells=count,
             elapsed=time.monotonic() - started,
+            skipped_packages=tuple(skipped_now),
             **extra,
         )
         logger.info("Verify result: %s", result.to_dict())
@@ -809,7 +924,14 @@ def verify_notebook(
             )
 
     while True:
-        sources, numbers = _plan(spec)
+        sources, numbers, skipped = _plan(spec, settings)
+        skipped_now[:] = skipped
+        if skipped:
+            notify(
+                "verifying",
+                "Not installing packages outside [verify] allowed_packages: "
+                + ", ".join(skipped),
+            )
         attempt = repairs + 1
         after = f" (after fix {repairs})" if repairs else ""
         notify(

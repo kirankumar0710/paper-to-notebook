@@ -34,10 +34,19 @@ in place; a change that weakens one needs an explicit reason.
    - Separate process; minimal environment with no API keys
      (`_sandbox_env`); throwaway working folder; per-cell and total
      timeouts; the process group is killed on timeout.
-   - It is not a full sandbox: it can reach the network and the user's
-     files. So it is offered only to localhost clients
-     (`verify_allowed`; `[verify] allow_remote = false` by default).
-     Never enable it by default on a shared or public server.
+   - It is **not** a sandbox against malicious code: it runs as the
+     user, so it can read their files, use the network and read this
+     server's API key from the process table (`ps eww <pid>` on macOS;
+     the clean environment only stops accidental leaks). Proper isolation
+     needs a container or a separate OS user; do that before any remote
+     use.
+   - So it is opt-in per run (`[verify] default = false`), offered only
+     to localhost clients with a localhost `Host` header (`verify_allowed`
+     with `host_is_local`; `[verify] allow_remote = false`), and the
+     checkbox says "only for papers you trust".
+   - It installs only packages in `[verify] allowed_packages`
+     (`split_allowed`); others are skipped and reported, so a paper
+     cannot get an arbitrary PyPI package installed here.
 2. **Other websites can reach a server on localhost through the user's
    browser.** A page can send a form POST to `localhost:8000` without
    asking (no CORS preflight), and the request arrives from 127.0.0.1,
@@ -49,6 +58,21 @@ in place; a change that weakens one needs an explicit reason.
      (`api/dependencies.py`): it refuses requests browsers mark as
      cross-site (`Sec-Fetch-Site`, `Origin`). Today: `POST /convert`,
      `POST /convert/stream`.
+   - **DNS rebinding** (a page pointing its own domain at 127.0.0.1 is
+     same-origin with this server) is stopped by `HostCheckMiddleware`
+     (`api/security.py`): only `localhost`, `127.0.0.1`, `::1` and
+     `[app] allowed_hosts` are served; anything else gets 400. Never
+     allow `"*"` locally.
+   - `SecurityHeadersMiddleware` sets a CSP allowing only `'self'`
+     (no inline scripts or styles; the docs pages get only
+     `frame-ancestors 'none'`), `X-Frame-Options: DENY`,
+     `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`,
+     and HSTS over HTTPS. Dashboard code must work under that CSP: no
+     inline `<script>`, `style="…"` or `on…=` handlers.
+   - At most `[app] max_concurrent_conversions` (2) conversions run at
+     once (`CONVERSIONS` slots in `convert.py`); more get 429. A new
+     costly endpoint takes a slot after validating its input and
+     releases it in `finally`.
 3. **API keys.** Read only from environment variables, never from files
    or requests; never logged, printed, returned or stored. Log them only
    through `util.log.mask_secret` (`ProviderSettings.__repr__` and
@@ -59,10 +83,11 @@ in place; a change that weakens one needs an explicit reason.
    from the request. Page includes must stay inside `api/static/`
    (`is_relative_to`). Saving never overwrites (`save_unique`).
 5. **Untrusted input.**
-   - Uploads: `.pdf` name, `%PDF-` header, 15 MB limit (`_read_pdf`).
+   - Uploads: `.pdf` name, `%PDF-` header, 15 MB limit (`_read_pdf`
+     reads at most limit + 1 bytes).
    - arXiv: the ID is parsed and validated; the PDF is downloaded only
-     from arxiv.org hosts, with the same size limit; the MCP server
-     starts with a minimal environment.
+     from arxiv.org hosts, also after redirects, with the same size
+     limit; the MCP server starts with a minimal environment.
    - Model output: `pip_packages` are filtered to plain package specs
      (`_PACKAGE_SPEC`) and shell-quoted, so the install cell cannot run
      other commands. Everything else the model writes is data until the
@@ -74,6 +99,10 @@ in place; a change that weakens one needs an explicit reason.
 7. **Supply chain.** CI actions are pinned to full commit SHAs with the
    version in a comment; keep new ones pinned the same way. Dependencies
    come from `pyproject.toml` and are audited by `pip-audit`.
+8. **No authentication.** Anyone who can reach the server can spend the
+   owner's API key, list and download notebooks and see server paths.
+   It is a local tool: never deploy it publicly (or add a host to
+   `[app] allowed_hosts`) without authentication in front of it.
 
 ## 3. Checklist for new code
 
@@ -82,7 +111,7 @@ Answer each that applies before finishing:
 - **New endpoint:** Does it change state, cost money or run code? Then
   add `Depends(require_same_origin)` and a test in
   `tests/test_security.py` that a cross-site request gets 403 before any
-  work is done. Does its response include anything secret or a server
+  work is done. Costly work takes a `CONVERSIONS` slot. Does its response include anything secret or a server
   path that another site should not read?
 - **Runs code or a subprocess:** Arguments as a list, not a shell string
   (`shell=True` only for the notebook's own `!` lines in the sandbox).
