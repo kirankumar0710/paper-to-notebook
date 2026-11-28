@@ -23,7 +23,9 @@ passes:
 1. `ruff check .`: lint, including the `S` (bandit) security rules
 2. `ruff format --check .`: formatting
 3. `pip-audit`: known vulnerabilities in dependencies
-4. `pytest tests/ --cov`: tests, with coverage of at least 95%
+4. `semgrep --config auto`: security patterns in Python, the dashboard's
+   JS/HTML, shell and the CI workflow (needs network)
+5. `pytest tests/ --cov`: tests, with coverage of at least 95%
 
 `./check.sh --fix` auto-fixes lint and formatting first.
 
@@ -31,6 +33,9 @@ passes:
   Fix the code rather than changing the rules.
 - Add `# noqa: <code>` only for a false positive, on that one line,
   with a short reason. Never add a blanket `noqa` or a new ignore.
+- For a semgrep finding, fix the code. Only if the behaviour is intended
+  (e.g. the run check executing notebook code), add
+  `# nosemgrep: <rule>` on the line before, with a reason.
 - If pip-audit reports a vulnerability, raise that package's minimum
   version in `pyproject.toml` to the fixed release.
 - New code needs tests; keep coverage at 95% or more.

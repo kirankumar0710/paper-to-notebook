@@ -4,14 +4,60 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlsplit
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Request, status
 
 from providers import LLMProvider, ProviderError, get_provider
 from providers.factory import resolve_settings
 from util.config import ConfigError, resolve_output_dir
 
-__all__ = ["check_configuration", "get_llm_provider", "get_output_dir"]
+__all__ = [
+    "check_configuration",
+    "get_llm_provider",
+    "get_output_dir",
+    "require_same_origin",
+]
+
+# Sec-Fetch-Site values a browser sends for requests the dashboard itself
+# makes ("same-origin") or the user starts directly ("none").
+_ALLOWED_FETCH_SITES = frozenset({"same-origin", "none"})
+
+
+def require_same_origin(request: Request) -> None:
+    """Refuse requests that another website makes from the user's browser.
+
+    A page on any site can send a form POST to this server (e.g. at
+    localhost:8000) from a visitor's browser, which would start a paid
+    conversion and, with the run check, execute LLM-written code on this
+    machine. Browsers mark such requests with ``Sec-Fetch-Site`` and
+    ``Origin``, which pages cannot forge. Requests without either header
+    (curl, scripts, tests) are not from a web page and are allowed.
+
+    Raises:
+        HTTPException: 403 for a request from another site.
+    """
+    site = request.headers.get("sec-fetch-site")
+    if site is not None:
+        if site in _ALLOWED_FETCH_SITES:
+            return
+        _refuse(f"Sec-Fetch-Site: {site}")
+    origin = request.headers.get("origin")
+    if origin is None:
+        return
+    host = request.headers.get("host", "")
+    if origin == "null" or urlsplit(origin).netloc != host:
+        _refuse(f"Origin: {origin}")
+
+
+def _refuse(reason: str) -> None:
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail=(
+            "Requests from other websites are not allowed "
+            f"({reason}). Use the dashboard or call the API directly."
+        ),
+    )
 
 
 def check_configuration() -> list[str]:

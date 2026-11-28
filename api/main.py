@@ -13,7 +13,6 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import Response
 from starlette.types import Scope
@@ -29,7 +28,7 @@ from api.routes.convert import (
     convert_pdf_to_notebook,
     convert_pdf_to_notebook_stream,
 )
-from api.settings import SAVED_PATH_HEADER, STATIC_DIR, UPLOAD_PAGE, VERSION
+from api.settings import STATIC_DIR, UPLOAD_PAGE, VERSION
 from util.log import configure_logging, get_logger
 
 __all__ = [
@@ -87,15 +86,10 @@ app = FastAPI(
     version=VERSION,
 )
 
-# CORS — allow everything for demo purposes
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["Content-Disposition", SAVED_PATH_HEADER],
-)
+# No CORS: the dashboard is served from this same origin, so browsers
+# need no cross-origin permission, and other websites must not be able to
+# read this API from a visitor's browser. Cross-site POSTs (which browsers
+# send without asking) are refused by require_same_origin on /convert.
 
 # The dashboard and its panels' CSS/JS.
 app.include_router(dashboard.router)

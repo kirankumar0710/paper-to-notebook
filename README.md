@@ -293,6 +293,13 @@ it can still reach the network and your files. So the check is offered
 only to a browser on the same machine (localhost) unless you set
 `allow_remote = true`. Leave that off on a shared or public server.
 
+Other websites cannot use your browser to reach the server: there is no
+CORS permission for other origins, and `/convert` and `/convert/stream`
+refuse requests that browsers mark as coming from another site
+(`Sec-Fetch-Site` / `Origin`), so a malicious page cannot start a paid
+conversion or the run check on your machine. Requests without those
+headers (curl, scripts) are allowed.
+
 On first use, the check creates a virtual environment in
 `~/.cache/paper-to-notebook/verify-env` and installs `base_packages`
 (numpy, scipy, pandas, matplotlib, scikit-learn and torch, standing in for

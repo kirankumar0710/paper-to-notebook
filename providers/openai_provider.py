@@ -144,6 +144,8 @@ class OpenAIProvider(LLMProvider):
         on_progress: ProgressCallback | None = None,
     ) -> dict[str, Any]:
         request = self._build_request(prompt, schema, system, pdf)
+        # Token limits, not credentials.
+        # nosemgrep: python-logger-credential-disclosure
         logger.info(
             "OpenAI request: model=%s, effort=%s, max_output_tokens=%s, "
             "pdf=%s, prompt=%d chars, system=%d chars",

@@ -210,6 +210,8 @@ def resolve_settings(
         if require_key:
             raise ConfigError(settings.missing_key_message())
         return settings
+    # describe_key() masks the key (mask_secret): "sk-a…7f2c (33 chars)".
+    # nosemgrep: python-logger-credential-disclosure
     logger.info("API key: %s", settings.describe_key())
     return settings
 

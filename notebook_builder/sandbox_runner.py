@@ -44,7 +44,12 @@ def shell(command):
     carry on if it fails."""
     # The notebook's own shell lines, run inside the sandbox.
     result = subprocess.run(  # noqa: S602
-        command, shell=True, capture_output=True, text=True, check=False
+        command,
+        # nosemgrep: subprocess-shell-true
+        shell=True,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     sys.stdout.write(result.stdout)
     sys.stderr.write(result.stderr)
@@ -90,6 +95,7 @@ def run(cells, stream):
                 contextlib.redirect_stderr(output),
             ):
                 # Running the notebook's code is the point of the check.
+                # nosemgrep: exec-detected
                 exec(code, namespace)  # noqa: S102
         except BaseException as exc:  # SystemExit too: report, don't exit
             send(

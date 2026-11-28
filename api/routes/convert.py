@@ -34,7 +34,11 @@ from fastapi import (
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response, StreamingResponse
 
-from api.dependencies import get_llm_provider, get_output_dir
+from api.dependencies import (
+    get_llm_provider,
+    get_output_dir,
+    require_same_origin,
+)
 from api.routes.download import SavedNotebook, save_notebook
 from api.routes.metrics import record_failure, record_success
 from api.settings import (
@@ -358,7 +362,7 @@ def _finish(
     return notebook_json, saved
 
 
-@router.post("/convert")
+@router.post("/convert", dependencies=[Depends(require_same_origin)])
 async def convert_pdf_to_notebook(
     provider: Annotated[LLMProvider, Depends(get_llm_provider)],
     output_dir: Annotated[Path, Depends(get_output_dir)],
@@ -497,7 +501,7 @@ def _result_event(
     }
 
 
-@router.post("/convert/stream")
+@router.post("/convert/stream", dependencies=[Depends(require_same_origin)])
 async def convert_pdf_to_notebook_stream(
     provider: Annotated[LLMProvider, Depends(get_llm_provider)],
     output_dir: Annotated[Path, Depends(get_output_dir)],

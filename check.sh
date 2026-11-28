@@ -51,6 +51,13 @@ fi
 run "Lint (ruff check)" uv run ruff check .
 run "Format (ruff format --check)" uv run ruff format --check .
 run "Dependency vulnerabilities (pip-audit)" audit
+# Security patterns in Python, the dashboard's JS/HTML, shell and the CI
+# workflow, with the Semgrep registry's recommended rules (--config auto,
+# which needs network). example/ holds LLM-generated notebooks kept as
+# generated. A finding that is intended gets "# nosemgrep: <rule>" with a
+# reason on the line before it.
+run "Static analysis (semgrep)" uvx semgrep scan --config auto --error \
+    --quiet --exclude example .
 run "Tests (pytest + coverage)" uv run pytest tests/ -v --cov
 
 echo

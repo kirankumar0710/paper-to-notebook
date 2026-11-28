@@ -141,6 +141,8 @@ class GeminiProvider(LLMProvider):
         candidates = response.candidates or []
         finish_reason = candidates[0].finish_reason if candidates else None
         usage = getattr(response, "usage_metadata", None)
+        # Token counts, not credentials.
+        # nosemgrep: python-logger-credential-disclosure
         logger.info(
             "Gemini response in %.1fs: finish_reason=%s, input_tokens=%s, "
             "output_tokens=%s",
