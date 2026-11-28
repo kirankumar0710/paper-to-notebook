@@ -13,14 +13,33 @@ writes the notebook.
 
 Based on the original [VizuaraAI paper-to-notebook](https://github.com/VizuaraAI/paper-to-notebook).
 
-**Improvements over the original:**
+## What's new compared with the original
 
-- **LLM provider agnostic:** works with Anthropic Claude, Google Gemini or
-  OpenAI, chosen with the `PROVIDER` environment variable.
-- **Better UI:** a dashboard with separate panels for configuration,
-  upload, live LLM output and downloads.
-- **Metrics:** token usage, estimated cost, time taken, and details of the
-  PDF and the generated `.ipynb`.
+This version adds a lot to the original: more LLM providers and inputs,
+a check that the notebook actually runs, a full dashboard, security
+hardening, and automated quality and security checks.
+
+**Using the app**
+
+| Improvement | What you get |
+|---|---|
+| **Works with any of three LLM providers** | Anthropic Claude, Google Gemini or OpenAI, chosen with `PROVIDER`; models and options in `config.toml`; temporary errors are retried. [More](#llm-providers-anthropic-gemini-openai) |
+| **arXiv links** | Paste an arXiv link or ID instead of uploading a PDF; the paper is found through the arXiv MCP server, and each step shows in the MCP log tab. [More](#arxiv-papers-mcp) |
+| **Notebook depth** | Beginner, Practitioner or Expert: how much the notebook explains. [More](#notebook-depth) |
+| **Check that the notebook runs** | Optional: runs every cell (quick mode) and lets the model fix errors before you get the notebook, with any provider. Progress shows in a side drawer. [More](#check-that-the-notebook-runs-optional) |
+| **Dashboard on one screen** | Tabbed panels that fit 1440×900 without scrolling: Upload, Download and Configuration; live LLM output, MCP log and Metrics. |
+| **Metrics** | Tokens, estimated cost, time per stage, and details of the PDF and the generated `.ipynb`. |
+| **Download history with recipes** | Every saved notebook records how it was made (provider, model, depth, source, run check). |
+
+**Built in, behind the scenes**
+
+| Improvement | What you get |
+|---|---|
+| **Security hardening** | Other websites can't use your browser to start conversions (same-origin guard, no CORS, host allow-list against DNS rebinding); strict security headers and CSP; a cap on parallel conversions; API keys masked everywhere; the run check installs only allowed packages; arXiv downloads stay on arxiv.org. [docs/security.html](docs/security.html) |
+| **Automated checks** | `./check.sh` runs lint with security rules (ruff + bandit), formatting, a dependency vulnerability scan (pip-audit), a static security scan (Semgrep) and the tests with at least 95% coverage, then prints a colour summary. CI runs the same script, with actions pinned to commit SHAs. |
+| **Tests** | 462 tests, marked by type (unit, integration, security) and run with `pytest -m`. The tests make no API calls, apart from optional browser tests (`./e2e.sh`) that drive the real dashboard in headless Chrome, two of them with your own provider. [More](#tests), [docs/testing.html](docs/testing.html) |
+| **Documentation** | [docs/index.html](docs/index.html): overview, architecture, UI architecture, security hardening and tests. |
+| **Modern tooling** | [uv](https://docs.astral.sh/uv/) for dependencies and running tools, with everything declared in `pyproject.toml`. |
 
 ## Overview
 
