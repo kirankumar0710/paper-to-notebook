@@ -54,3 +54,7 @@ passes:
 - Never log, print or hard-code API keys; use `util.log.mask_secret`.
 - Dashboard UI work (`api/static/`) follows the
   `paper-notebook-ui-design` skill.
+- Security-sensitive work (endpoints, running code or subprocesses,
+  paths and downloads, API keys, fetched URLs, dashboard code showing
+  server or model data, CI, dependencies, triaging findings) follows the
+  `security-hardening` skill.
